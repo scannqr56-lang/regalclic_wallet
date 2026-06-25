@@ -186,6 +186,18 @@ export async function markWalletSyncJobProcessed(
     .eq("id", jobId);
 }
 
+/** Marque tous les jobs en attente pour une membership (sync instantanée). */
+export async function markPendingJobsProcessedForMembership(
+  supabase: SupabaseClient,
+  membershipId: string,
+) {
+  await supabase
+    .from("wallet_sync_jobs")
+    .update({ processed_at: new Date().toISOString() })
+    .eq("membership_id", membershipId)
+    .is("processed_at", null);
+}
+
 export function isWalletSyncSuccessful(
   result: WalletSyncResult,
   membership: { google_object_id?: string | null; apple_serial_number?: string | null } | null,
@@ -195,6 +207,55 @@ export function isWalletSyncSuccessful(
   const googleOk = !needsGoogle || result.google.synced;
   const appleOk = !needsApple || result.apple.synced;
   return googleOk && appleOk;
+}
+
+/** Sync instantanée : Apple sans push token enregistré n'est pas bloquant. */
+export function isWalletSyncAcceptable(
+  result: WalletSyncResult,
+  membership: { google_object_id?: string | null; apple_serial_number?: string | null } | null,
+): boolean {
+  const needsGoogle = Boolean(membership?.google_object_id);
+  const needsApple = Boolean(membership?.apple_serial_number);
+  const googleOk = !needsGoogle || result.google.synced;
+  const appleOk = !needsApple || result.apple.synced || result.apple.push_tokens === 0;
+  return googleOk && appleOk;
+}
+
+export async function processMembershipWalletSync(
+  supabase: SupabaseClient,
+  membershipId: string,
+  options?: { googleToken?: string | null; strict?: boolean },
+) {
+  const { data: membership } = await supabase
+    .from("customer_memberships")
+    .select("google_object_id, apple_serial_number")
+    .eq("id", membershipId)
+    .maybeSingle();
+
+  if (!membership?.google_object_id && !membership?.apple_serial_number) {
+    await markPendingJobsProcessedForMembership(supabase, membershipId);
+    return {
+      ok: true,
+      skipped: true,
+      syncResult: null,
+      membership,
+    };
+  }
+
+  const syncResult = await syncWalletForMembership(
+    supabase,
+    membershipId,
+    options?.googleToken,
+  );
+
+  const checker = options?.strict ? isWalletSyncSuccessful : isWalletSyncAcceptable;
+  const ok = checker(syncResult, membership);
+
+  if (ok) {
+    await markPendingJobsProcessedForMembership(supabase, membershipId);
+  }
+
+  return { ok, skipped: false, syncResult, membership };
 }
 
 export { getGoogleAccessToken };

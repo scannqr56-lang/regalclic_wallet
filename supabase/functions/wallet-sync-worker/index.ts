@@ -1,9 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
   getGoogleAccessToken,
-  isWalletSyncSuccessful,
-  markWalletSyncJobProcessed,
-  syncWalletForMembership,
+  processMembershipWalletSync,
 } from "../_shared/wallet-sync-core.ts";
 
 const corsHeaders = {
@@ -50,26 +48,20 @@ Deno.serve(async (req) => {
 
     for (const job of jobs) {
       try {
-        const { data: membership } = await supabase
-          .from("customer_memberships")
-          .select("google_object_id, apple_serial_number")
-          .eq("id", job.membership_id)
-          .maybeSingle();
+        const result = await processMembershipWalletSync(supabase, job.membership_id, {
+          googleToken,
+          strict: true,
+        });
 
-        if (!membership?.google_object_id && !membership?.apple_serial_number) {
-          await markWalletSyncJobProcessed(supabase, job.id);
+        if (result.skipped) {
           skipped += 1;
           continue;
         }
 
-        const syncResult = await syncWalletForMembership(supabase, job.membership_id, googleToken);
-
-        if (!isWalletSyncSuccessful(syncResult, membership)) {
-          const parts = [syncResult.google.error, syncResult.apple.error].filter(Boolean);
-          throw new Error(parts.join(" | ") || "Synchronisation wallet incomplète");
+        if (!result.ok) {
+          throw new Error("Synchronisation wallet incomplète");
         }
 
-        await markWalletSyncJobProcessed(supabase, job.id);
         processed += 1;
       } catch (jobError) {
         failed += 1;

@@ -13,3 +13,6 @@ verify_jwt = false
 
 [functions.wallet-sync-worker]
 verify_jwt = false
+
+[functions.wallet-sync-membership]
+verify_jwt = true

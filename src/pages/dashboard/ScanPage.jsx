@@ -24,6 +24,7 @@ import {
   lookupMembershipByQrToken,
   normalizeScannedValue,
   redeemMembershipReward,
+  syncMembershipWallet,
 } from '@/lib/scan';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,11 +87,32 @@ function MembershipPanel({
     onRefresh?.();
   };
 
+  const syncWallet = async () => {
+    try {
+      const result = await syncMembershipWallet(membership.id);
+      if (result.synced && !result.skipped) {
+        toast.success('Carte Wallet mise à jour', {
+          description: 'Le client voit le nouveau solde sur sa carte.',
+        });
+      }
+      return result;
+    } catch {
+      toast.info('Solde enregistré', {
+        description: 'La carte Wallet se mettra à jour automatiquement sous peu.',
+      });
+      return null;
+    }
+  };
+
   const pointsMutation = useMutation({
-    mutationFn: () => addPointsToMembership(membership.id, {
-      amountSpent: parseFloat(amount.replace(',', '.')),
-      note,
-    }),
+    mutationFn: async () => {
+      const updated = await addPointsToMembership(membership.id, {
+        amountSpent: parseFloat(amount.replace(',', '.')),
+        note,
+      });
+      await syncWallet();
+      return updated;
+    },
     onSuccess: (updated) => {
       toast.success('Points ajoutés', {
         description: `Nouveau solde : ${updated.points_balance} pts`,
@@ -103,7 +125,11 @@ function MembershipPanel({
   });
 
   const stampMutation = useMutation({
-    mutationFn: () => addStampToMembership(membership.id, note),
+    mutationFn: async () => {
+      const updated = await addStampToMembership(membership.id, note);
+      await syncWallet();
+      return updated;
+    },
     onSuccess: (updated) => {
       toast.success('Tampon ajouté', {
         description: `${updated.stamps_balance} / ${program?.stamps_required ?? '?'} tampons`,
@@ -115,7 +141,11 @@ function MembershipPanel({
   });
 
   const redeemMutation = useMutation({
-    mutationFn: () => redeemMembershipReward(membership.id, note),
+    mutationFn: async () => {
+      const updated = await redeemMembershipReward(membership.id, note);
+      await syncWallet();
+      return updated;
+    },
     onSuccess: (updated) => {
       toast.success('Récompense utilisée', {
         description: `${updated.rewards_available} récompense(s) restante(s)`,

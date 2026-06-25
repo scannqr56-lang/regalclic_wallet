@@ -10,11 +10,9 @@ Après un scan (points, tampons, récompense), un **trigger PostgreSQL** enqueue
 ```
 Scanner restaurateur
   → RPC add_points / add_stamp / redeem
-  → UPDATE customer_memberships (solde)
-  → trigger enqueue_wallet_sync_on_balance_change
-  → wallet_sync_jobs (pending)
-  → wallet-sync-worker (cron toutes les 3 min)
+  → sync instantanée (wallet-sync-membership) ← ~1–2 s
   → Google PATCH + Apple APNs
+  → (secours) wallet-sync-worker cron si échec
 ```
 
 ## Secrets requis (Supabase Edge Functions)
@@ -48,7 +46,17 @@ Appliquer `20250625120005_wallet_sync_claim.sql` (RPC `claim_wallet_sync_jobs`) 
 supabase db push
 ```
 
-## Déployer le worker
+## Sync instantanée (recommandé)
+
+Après chaque scan, le dashboard appelle **`wallet-sync-membership`** avec la session du restaurateur. La carte Wallet du client est mise à jour en **1–2 secondes** (Google) ou quelques secondes (Apple via APNs).
+
+```bash
+supabase functions deploy wallet-sync-membership
+```
+
+Le cron GitHub reste actif en **file de secours** si la sync instantanée échoue.
+
+## Déployer le worker (secours)
 
 ```bash
 supabase functions deploy wallet-sync-worker --no-verify-jwt
