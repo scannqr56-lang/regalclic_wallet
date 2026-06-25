@@ -154,7 +154,9 @@ export default function QrPage() {
               {joinUrl}
             </div>
             <p className="text-xs">
-              Astuce : définissez <code className="rounded bg-muted px-1">VITE_PUBLIC_APP_URL</code> dans votre fichier <code className="rounded bg-muted px-1">.env</code> pour que le QR pointe vers votre domaine de production.
+              Ce lien utilise automatiquement l&apos;adresse du site sur lequel vous êtes connecté
+              (ex. Vercel ou votre domaine). En développement local, vous pouvez forcer une autre URL
+              via <code className="rounded bg-muted px-1">VITE_PUBLIC_APP_URL</code> dans <code className="rounded bg-muted px-1">.env</code>.
             </p>
           </CardContent>
         </Card>
