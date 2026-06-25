@@ -86,4 +86,4 @@ curl -X POST "https://pfutrevqneggudriiyxr.supabase.co/functions/v1/wallet-googl
 
 ## Phase 7 — synchronisation
 
-Le module `_shared/google-wallet-core.ts` sera réutilisé pour mettre à jour le solde sur Google Wallet après chaque transaction (scan restaurateur).
+Le module `_shared/google-wallet-core.ts` est utilisé par `wallet-sync-worker` pour mettre à jour le solde sur Google Wallet après chaque transaction. Voir [`docs/WALLET_SYNC_SETUP.md`](WALLET_SYNC_SETUP.md).

@@ -1,0 +1,23 @@
+name: Wallet Sync Worker
+
+on:
+  schedule:
+    - cron: "*/3 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger wallet-sync-worker
+        env:
+          WALLET_SYNC_SECRET: ${{ secrets.WALLET_SYNC_SECRET }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          if [ -z "$WALLET_SYNC_SECRET" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "Configure les secrets GitHub WALLET_SYNC_SECRET et SUPABASE_PROJECT_REF"
+            exit 1
+          fi
+          curl -sf -X POST \
+            -H "x-wallet-sync-secret: ${WALLET_SYNC_SECRET}" \
+            "https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/wallet-sync-worker"

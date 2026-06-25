@@ -204,6 +204,36 @@ export async function upsertGoogleObject(
   }
 }
 
+export async function patchGoogleLoyaltyObject(
+  accessToken: string,
+  objectId: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  const base = "https://walletobjects.googleapis.com/walletobjects/v1";
+  const patchRes = await fetch(`${base}/loyaltyObject/${encodeURIComponent(objectId)}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!patchRes.ok) {
+    throw new GoogleWalletError(`PATCH objet Google impossible: ${await patchRes.text()}`, 500);
+  }
+}
+
+export function buildGoogleSyncPatchBody(ctx: GoogleMembershipContext, issuerId: string) {
+  const classId = googleWalletClassId(issuerId, ctx.businessId);
+  const full = buildGoogleObjectBody(ctx, classId);
+  return {
+    loyaltyPoints: full.loyaltyPoints,
+    textModulesData: full.textModulesData,
+    accountName: full.accountName,
+  };
+}
+
 export async function buildGoogleSaveUrl(classId: string, objectId: string): Promise<string> {
   const clientEmail = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_EMAIL") || "";
   const privateKeyRaw = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY") || "";

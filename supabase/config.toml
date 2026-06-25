@@ -10,3 +10,6 @@ verify_jwt = false
 
 [functions.wallet-google]
 verify_jwt = false
+
+[functions.wallet-sync-worker]
+verify_jwt = false

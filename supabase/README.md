@@ -11,6 +11,7 @@ Ce dossier contient le schéma de base de données pour la V1 Wallet-first, **in
 | `20250625120002_v1_rpc_functions.sql` | RPC métier atomiques |
 | `20250625120003_v1_storage.sql` | Bucket `business-assets` (logos) |
 | `20250625120004_fix_pgcrypto.sql` | Fix `gen_random_bytes` (schéma `extensions` Supabase) |
+| `20250625120005_wallet_sync_claim.sql` | RPC `claim_wallet_sync_jobs` (worker Phase 7) |
 
 ## Appliquer les migrations
 
