@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Loader2, Smartphone, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
-import { openAppleWalletPass, isAppleDevice } from '@/lib/wallet';
+import { openAppleWalletPass, openGoogleWalletPass, isAppleDevice } from '@/lib/wallet';
 import { Button } from '@/components/ui/button';
 
 export default function WalletAddButtons({ membershipId, businessSlug }) {
   const [appleLoading, setAppleLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleApple = async () => {
     if (!membershipId || !businessSlug) return;
@@ -26,8 +27,18 @@ export default function WalletAddButtons({ membershipId, businessSlug }) {
     }
   };
 
-  const handleGoogle = () => {
-    toast.info('Google Wallet arrive à la Phase 5.');
+  const handleGoogle = async () => {
+    if (!membershipId || !businessSlug) return;
+    setGoogleLoading(true);
+    try {
+      await openGoogleWalletPass(membershipId, businessSlug);
+      toast.success('Redirection vers Google Wallet…');
+    } catch (error) {
+      toast.error(error?.message || 'Erreur Google Wallet', {
+        description: 'Vérifiez que le compte de service Google est configuré côté serveur.',
+      });
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -36,7 +47,7 @@ export default function WalletAddButtons({ membershipId, businessSlug }) {
         type="button"
         className="h-12 justify-start gap-3 bg-black text-white hover:bg-black/90"
         onClick={handleApple}
-        disabled={appleLoading}
+        disabled={appleLoading || googleLoading}
       >
         {appleLoading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
@@ -50,9 +61,14 @@ export default function WalletAddButtons({ membershipId, businessSlug }) {
         variant="outline"
         className="h-12 justify-start gap-3 border-2"
         onClick={handleGoogle}
+        disabled={appleLoading || googleLoading}
       >
-        <Smartphone className="h-5 w-5" />
-        Ajouter à Google Wallet
+        {googleLoading ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          <Smartphone className="h-5 w-5" />
+        )}
+        {googleLoading ? 'Génération…' : 'Ajouter à Google Wallet'}
       </Button>
     </div>
   );

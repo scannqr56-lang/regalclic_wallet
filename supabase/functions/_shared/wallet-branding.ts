@@ -36,3 +36,27 @@ export function resolveFallbackLogoUrl(): string {
   }
   return "https://regalclic.app/regalclic-logo-on-dark.png";
 }
+
+export function resolvePrimaryHex(hex?: string | null): string {
+  const candidate = (hex || Deno.env.get("REGALCLIC_WALLET_PRIMARY_HEX") || "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(candidate)) return candidate;
+  return REGALCLIC_WALLET_PRIMARY_HEX;
+}
+
+/** Classe Google Wallet dédiée à un commerce. */
+export function googleWalletClassId(issuerId: string, businessId: string): string {
+  const slug = businessId.replaceAll("-", "").slice(0, 20);
+  return `${issuerId}.regalclic-business-${slug}`;
+}
+
+/** Objet Google Wallet dédié à une membership. */
+export function googleWalletObjectId(issuerId: string, membershipId: string): string {
+  const slug = membershipId.replaceAll("-", "").slice(0, 24);
+  return `${issuerId}.regalclic-mbr-${slug}`;
+}
+
+export function resolveGoogleLogoUrl(businessLogoUrl?: string | null): string {
+  const logo = (businessLogoUrl || "").trim().split("?")[0];
+  if (logo.startsWith("https://")) return logo;
+  return resolveFallbackLogoUrl();
+}

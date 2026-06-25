@@ -7,3 +7,6 @@ verify_jwt = false
 
 [functions.wallet-apple-webhook]
 verify_jwt = false
+
+[functions.wallet-google]
+verify_jwt = false

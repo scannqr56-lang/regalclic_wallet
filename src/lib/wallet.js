@@ -56,3 +56,46 @@ export async function openAppleWalletPass(membershipId, businessSlug) {
 export function isAppleDevice() {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
+
+const GOOGLE_WALLET_FUNCTION = 'wallet-google';
+
+function getGoogleWalletFunctionUrl() {
+  const { url, anonKey } = getSupabaseConfig();
+  const endpoint = `${url.replace(/\/$/, '')}/functions/v1/${GOOGLE_WALLET_FUNCTION}`;
+  return { endpoint, anonKey };
+}
+
+/**
+ * Génère le lien « Save to Google Wallet » et redirige l'utilisateur.
+ */
+export async function openGoogleWalletPass(membershipId, businessSlug) {
+  const { endpoint, anonKey } = getGoogleWalletFunctionUrl();
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${anonKey}`,
+      apikey: anonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      membership_id: membershipId,
+      business_slug: businessSlug,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Impossible de générer la carte Google Wallet');
+  }
+
+  if (!data.saveUrl) {
+    throw new Error('Lien Google Wallet manquant');
+  }
+
+  window.location.href = data.saveUrl;
+}
+
+export function isAndroidDevice() {
+  return /Android/i.test(navigator.userAgent);
+}
