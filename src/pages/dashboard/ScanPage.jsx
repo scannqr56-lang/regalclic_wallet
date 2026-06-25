@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import QrScanner from '@/components/scan/QrScanner';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
+import { fetchMembershipForScan } from '@/lib/customers';
 import {
   addPointsToMembership,
   addStampToMembership,
@@ -338,6 +339,8 @@ function MembershipPanel({
 
 export default function ScanPage() {
   const { business, loyaltyProgram, isLoading } = useMyBusiness();
+  const [searchParams] = useSearchParams();
+  const preloadMembershipId = searchParams.get('membership');
   const [mode, setMode] = useState('scan');
   const [scanActive, setScanActive] = useState(true);
   const [manualToken, setManualToken] = useState('');
@@ -395,14 +398,46 @@ export default function ScanPage() {
   };
 
   const refreshMembership = async () => {
-    if (!lookupData?.membership?.qr_token) return;
+    if (!lookupData?.membership?.id) return;
     try {
-      const data = await lookupMembershipByQrToken(lookupData.membership.qr_token);
+      const data = lookupData.membership.qr_token
+        ? await lookupMembershipByQrToken(lookupData.membership.qr_token)
+        : await fetchMembershipForScan(lookupData.membership.id);
       setLookupData(data);
     } catch {
       // keep current view on refresh failure
     }
   };
+
+  useEffect(() => {
+    if (!preloadMembershipId || !business?.id || lookupData) return undefined;
+
+    let cancelled = false;
+
+    (async () => {
+      setLookupLoading(true);
+      setLookupError('');
+      try {
+        const data = await fetchMembershipForScan(preloadMembershipId);
+        if (!cancelled) {
+          setLookupData(data);
+          setScanActive(false);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message = error?.message || 'Client introuvable';
+          setLookupError(message);
+          toast.error(message);
+        }
+      } finally {
+        if (!cancelled) setLookupLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preloadMembershipId, business?.id, lookupData]);
 
   if (isLoading) {
     return (

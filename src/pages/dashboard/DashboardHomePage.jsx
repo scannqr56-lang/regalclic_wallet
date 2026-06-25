@@ -106,7 +106,7 @@ export default function DashboardHomePage() {
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="text-base">Commerce</CardTitle>
@@ -162,6 +162,21 @@ export default function DashboardHomePage() {
                 <Link to="/dashboard/scan">
                   <ScanLine className="h-4 w-4" />
                   Ouvrir le scanner
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <CardTitle className="text-base">Clients</CardTitle>
+              <CardDescription>Liste et fiches clients inscrits</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" asChild className="w-full" disabled={!loyaltyProgram}>
+                <Link to="/dashboard/customers">
+                  <Users className="h-4 w-4" />
+                  Voir les clients
                 </Link>
               </Button>
             </CardContent>

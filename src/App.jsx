@@ -10,6 +10,8 @@ import BusinessSettingsPage from '@/pages/dashboard/BusinessSettingsPage';
 import ProgramSettingsPage from '@/pages/dashboard/ProgramSettingsPage';
 import QrPage from '@/pages/dashboard/QrPage';
 import ScanPage from '@/pages/dashboard/ScanPage';
+import CustomersPage from '@/pages/dashboard/CustomersPage';
+import CustomerDetailPage from '@/pages/dashboard/CustomerDetailPage';
 import JoinPage from '@/pages/join/JoinPage';
 import JoinSuccessPage from '@/pages/join/JoinSuccessPage';
 
@@ -63,6 +65,22 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ScanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/customers"
+              element={
+                <ProtectedRoute>
+                  <CustomersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/customers/:membershipId"
+              element={
+                <ProtectedRoute>
+                  <CustomerDetailPage />
                 </ProtectedRoute>
               }
             />

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Store, Sparkles, QrCode, ScanLine, LogOut } from 'lucide-react';
+import { LayoutDashboard, Store, Sparkles, QrCode, ScanLine, Users, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ const NAV = [
   { to: '/dashboard/program', label: 'Programme', icon: Sparkles },
   { to: '/dashboard/qr', label: 'QR inscription', icon: QrCode },
   { to: '/dashboard/scan', label: 'Scanner', icon: ScanLine },
+  { to: '/dashboard/customers', label: 'Clients', icon: Users },
 ];
 
 export default function DashboardLayout({ children, title, description }) {
