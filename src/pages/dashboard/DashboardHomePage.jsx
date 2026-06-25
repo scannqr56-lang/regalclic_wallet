@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Users, Sparkles, QrCode, Store, ArrowRight, AlertCircle,
+  Users, Sparkles, QrCode, Store, ArrowRight, AlertCircle, ScanLine,
 } from 'lucide-react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
@@ -106,7 +106,7 @@ export default function DashboardHomePage() {
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="text-base">Commerce</CardTitle>
@@ -147,6 +147,21 @@ export default function DashboardHomePage() {
                 <Link to="/dashboard/qr">
                   <QrCode className="h-4 w-4" />
                   Voir le QR code
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow border-rc-teal/30">
+            <CardHeader>
+              <CardTitle className="text-base">Scanner client</CardTitle>
+              <CardDescription>Créditer points ou tampons en caisse</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="w-full" disabled={!loyaltyProgram}>
+                <Link to="/dashboard/scan">
+                  <ScanLine className="h-4 w-4" />
+                  Ouvrir le scanner
                 </Link>
               </Button>
             </CardContent>

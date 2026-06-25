@@ -9,6 +9,7 @@ import DashboardHomePage from '@/pages/dashboard/DashboardHomePage';
 import BusinessSettingsPage from '@/pages/dashboard/BusinessSettingsPage';
 import ProgramSettingsPage from '@/pages/dashboard/ProgramSettingsPage';
 import QrPage from '@/pages/dashboard/QrPage';
+import ScanPage from '@/pages/dashboard/ScanPage';
 import JoinPage from '@/pages/join/JoinPage';
 import JoinSuccessPage from '@/pages/join/JoinSuccessPage';
 
@@ -54,6 +55,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <QrPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/scan"
+              element={
+                <ProtectedRoute>
+                  <ScanPage />
                 </ProtectedRoute>
               }
             />
