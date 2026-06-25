@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+*.log
+
+# Certificats Apple (ne jamais committer)
+regalclic-wallet-cert/
+*.pem
+*.p12
+*.p8
+*.cer
+*.key
+
+# Supabase CLI local
+supabase/.temp/
