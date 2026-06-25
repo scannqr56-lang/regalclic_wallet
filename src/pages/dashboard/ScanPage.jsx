@@ -90,15 +90,26 @@ function MembershipPanel({
   const syncWallet = async () => {
     try {
       const result = await syncMembershipWallet(membership.id);
-      if (result.synced && !result.skipped) {
+      if (result.skipped) {
+        toast.info('Solde enregistré', {
+          description: 'Le client n\'a pas encore de carte Wallet active sur son téléphone.',
+        });
+        return result;
+      }
+      if (result.synced) {
+        const parts = [];
+        if (result.google?.synced) parts.push('Google Wallet');
+        if (result.apple?.synced) parts.push('Apple Wallet');
         toast.success('Carte Wallet mise à jour', {
-          description: 'Le client voit le nouveau solde sur sa carte.',
+          description: parts.length
+            ? `${parts.join(' et ')} synchronisé(s).`
+            : 'Le client voit le nouveau solde.',
         });
       }
       return result;
-    } catch {
-      toast.info('Solde enregistré', {
-        description: 'La carte Wallet se mettra à jour automatiquement sous peu.',
+    } catch (error) {
+      toast.warning('Solde enregistré — sync Wallet échouée', {
+        description: error?.message || 'Réessayez dans quelques instants.',
       });
       return null;
     }

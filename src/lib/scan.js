@@ -32,7 +32,8 @@ export async function syncMembershipWallet(membershipId) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || 'Synchronisation Wallet impossible');
+    const detail = data.error || data.details?.google?.error || data.details?.apple?.error;
+    throw new Error(detail || 'Synchronisation Wallet impossible');
   }
   return data;
 }

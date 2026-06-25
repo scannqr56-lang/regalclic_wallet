@@ -62,6 +62,23 @@ function toGoogleContext(row: MembershipRow): GoogleMembershipContext {
   };
 }
 
+async function fetchApplePushTokens(
+  supabase: SupabaseClient,
+  serialNumber: string | null,
+): Promise<string[]> {
+  if (!serialNumber) return [];
+
+  const { data: registrations } = await supabase
+    .from("apple_wallet_registrations")
+    .select("push_token")
+    .eq("serial_number", serialNumber)
+    .not("push_token", "is", null);
+
+  return (registrations || [])
+    .map((r) => r.push_token)
+    .filter(Boolean) as string[];
+}
+
 export async function syncWalletForMembership(
   supabase: SupabaseClient,
   membershipId: string,
@@ -100,19 +117,24 @@ export async function syncWalletForMembership(
   }
 
   const row = membership as MembershipRow;
-  const hasGoogle = Boolean(row.google_object_id);
-  const hasApple = Boolean(row.apple_serial_number);
+  const pushTokens = await fetchApplePushTokens(supabase, row.apple_serial_number);
+  const hasGoogleWallet = Boolean(row.google_object_id);
+  const hasAppleWallet = pushTokens.length > 0;
 
-  if (!hasGoogle && !hasApple) {
-    result.google.error = "Aucun pass wallet pour cette carte";
-    result.apple.error = "Aucun pass wallet pour cette carte";
+  result.apple.push_tokens = pushTokens.length;
+
+  if (!hasGoogleWallet && !hasAppleWallet) {
+    result.google.error = hasGoogleWallet ? null : "Aucune carte Google Wallet";
+    result.apple.error = row.apple_serial_number && !hasAppleWallet
+      ? "Carte Apple non installée sur un appareil (ré-ajoutez-la depuis Wallet)"
+      : "Aucune carte Apple Wallet";
     return result;
   }
 
   const now = new Date().toISOString();
   const token = googleToken !== undefined ? googleToken : await getGoogleAccessToken().catch(() => null);
 
-  if (hasGoogle && row.google_object_id) {
+  if (hasGoogleWallet && row.google_object_id) {
     const issuerId = Deno.env.get("GOOGLE_WALLET_ISSUER_ID") || "";
     if (!token) {
       result.google.error = "Google token indisponible";
@@ -135,40 +157,23 @@ export async function syncWalletForMembership(
     }
   }
 
-  if (hasApple && row.apple_serial_number) {
-    const { data: registrations } = await supabase
-      .from("apple_wallet_registrations")
-      .select("push_token")
-      .eq("serial_number", row.apple_serial_number)
-      .not("push_token", "is", null);
-
-    const pushTokens = (registrations || [])
-      .map((r) => r.push_token)
-      .filter(Boolean) as string[];
-
-    result.apple.push_tokens = pushTokens.length;
-
+  if (hasAppleWallet) {
     await supabase
       .from("wallet_passes")
       .update({ last_updated_at: now })
       .eq("membership_id", membershipId)
       .eq("platform", "apple");
 
-    if (!pushTokens.length) {
-      result.apple.error =
-        "Aucun appareil enregistré pour ce pass Apple. Le client doit ré-ajouter la carte dans Wallet.";
-    } else {
-      const apnsResult = await pushPassKitUpdates(pushTokens);
-      result.apple.apns_sent = apnsResult.sent;
-      result.apple.apns_failed = apnsResult.failed;
+    const apnsResult = await pushPassKitUpdates(pushTokens);
+    result.apple.apns_sent = apnsResult.sent;
+    result.apple.apns_failed = apnsResult.failed;
 
-      if (apnsResult.failed > 0 && apnsResult.sent === 0) {
-        result.apple.error = `APNs échec: ${apnsResult.errors.join("; ")}`;
-      } else {
-        result.apple.synced = true;
-        if (apnsResult.failed > 0) {
-          result.apple.error = `APNs partiel: ${apnsResult.errors.join("; ")}`;
-        }
+    if (apnsResult.failed > 0 && apnsResult.sent === 0) {
+      result.apple.error = `APNs échec: ${apnsResult.errors.join("; ")}`;
+    } else {
+      result.apple.synced = true;
+      if (apnsResult.failed > 0) {
+        result.apple.error = `APNs partiel: ${apnsResult.errors.join("; ")}`;
       }
     }
   }
@@ -186,7 +191,6 @@ export async function markWalletSyncJobProcessed(
     .eq("id", jobId);
 }
 
-/** Marque tous les jobs en attente pour une membership (sync instantanée). */
 export async function markPendingJobsProcessedForMembership(
   supabase: SupabaseClient,
   membershipId: string,
@@ -200,31 +204,16 @@ export async function markPendingJobsProcessedForMembership(
 
 export function isWalletSyncSuccessful(
   result: WalletSyncResult,
-  membership: { google_object_id?: string | null; apple_serial_number?: string | null } | null,
+  targets: { hasGoogle: boolean; hasApple: boolean },
 ): boolean {
-  const needsGoogle = Boolean(membership?.google_object_id);
-  const needsApple = Boolean(membership?.apple_serial_number);
-  const googleOk = !needsGoogle || result.google.synced;
-  const appleOk = !needsApple || result.apple.synced;
+  const googleOk = !targets.hasGoogle || result.google.synced;
+  const appleOk = !targets.hasApple || result.apple.synced;
   return googleOk && appleOk;
 }
 
-/** Sync instantanée : Apple sans push token enregistré n'est pas bloquant. */
-export function isWalletSyncAcceptable(
-  result: WalletSyncResult,
-  membership: { google_object_id?: string | null; apple_serial_number?: string | null } | null,
-): boolean {
-  const needsGoogle = Boolean(membership?.google_object_id);
-  const needsApple = Boolean(membership?.apple_serial_number);
-  const googleOk = !needsGoogle || result.google.synced;
-  const appleOk = !needsApple || result.apple.synced || result.apple.push_tokens === 0;
-  return googleOk && appleOk;
-}
-
-export async function processMembershipWalletSync(
+export async function resolveWalletSyncTargets(
   supabase: SupabaseClient,
   membershipId: string,
-  options?: { googleToken?: string | null; strict?: boolean },
 ) {
   const { data: membership } = await supabase
     .from("customer_memberships")
@@ -232,13 +221,36 @@ export async function processMembershipWalletSync(
     .eq("id", membershipId)
     .maybeSingle();
 
-  if (!membership?.google_object_id && !membership?.apple_serial_number) {
+  if (!membership) {
+    return { membership: null, hasGoogle: false, hasApple: false, skipped: true };
+  }
+
+  const pushTokens = await fetchApplePushTokens(supabase, membership.apple_serial_number);
+  const hasGoogle = Boolean(membership.google_object_id);
+  const hasApple = pushTokens.length > 0;
+
+  if (!hasGoogle && !hasApple) {
+    return { membership, hasGoogle: false, hasApple: false, skipped: true };
+  }
+
+  return { membership, hasGoogle, hasApple, skipped: false };
+}
+
+export async function processMembershipWalletSync(
+  supabase: SupabaseClient,
+  membershipId: string,
+  options?: { googleToken?: string | null; strict?: boolean },
+) {
+  const targets = await resolveWalletSyncTargets(supabase, membershipId);
+
+  if (targets.skipped || !targets.membership) {
     await markPendingJobsProcessedForMembership(supabase, membershipId);
     return {
       ok: true,
       skipped: true,
       syncResult: null,
-      membership,
+      membership: targets.membership,
+      targets,
     };
   }
 
@@ -248,14 +260,22 @@ export async function processMembershipWalletSync(
     options?.googleToken,
   );
 
-  const checker = options?.strict ? isWalletSyncSuccessful : isWalletSyncAcceptable;
-  const ok = checker(syncResult, membership);
+  const ok = isWalletSyncSuccessful(syncResult, {
+    hasGoogle: targets.hasGoogle,
+    hasApple: targets.hasApple,
+  });
 
   if (ok) {
     await markPendingJobsProcessedForMembership(supabase, membershipId);
   }
 
-  return { ok, skipped: false, syncResult, membership };
+  return {
+    ok,
+    skipped: false,
+    syncResult,
+    membership: targets.membership,
+    targets,
+  };
 }
 
 export { getGoogleAccessToken };

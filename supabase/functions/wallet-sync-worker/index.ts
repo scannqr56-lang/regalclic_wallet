@@ -50,7 +50,6 @@ Deno.serve(async (req) => {
       try {
         const result = await processMembershipWalletSync(supabase, job.membership_id, {
           googleToken,
-          strict: true,
         });
 
         if (result.skipped) {

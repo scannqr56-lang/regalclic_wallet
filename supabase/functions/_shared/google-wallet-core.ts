@@ -155,6 +155,7 @@ export function buildGoogleObjectBody(ctx: GoogleMembershipContext, classId: str
     state: "ACTIVE",
     accountId: ctx.membershipId.replaceAll("-", "").slice(0, 20),
     accountName: ctx.customerFirstName,
+    notifyPreference: "NOTIFY_ON_UPDATE",
     barcode: {
       type: "QR_CODE",
       value: ctx.qrToken,
@@ -227,10 +228,19 @@ export async function patchGoogleLoyaltyObject(
 export function buildGoogleSyncPatchBody(ctx: GoogleMembershipContext, issuerId: string) {
   const classId = googleWalletClassId(issuerId, ctx.businessId);
   const full = buildGoogleObjectBody(ctx, classId);
+  const balanceLabel = ctx.programType === "stamps" ? "tampons" : "points";
+
   return {
     loyaltyPoints: full.loyaltyPoints,
     textModulesData: full.textModulesData,
     accountName: full.accountName,
+    notifyPreference: "NOTIFY_ON_UPDATE",
+    messages: [{
+      id: `sync-${ctx.membershipId.slice(0, 8)}-${ctx.balance}`,
+      header: "Solde mis à jour",
+      body: `Vous avez maintenant ${ctx.balance} ${balanceLabel}.`,
+      messageType: "TEXT_AND_NOTIFY",
+    }],
   };
 }
 

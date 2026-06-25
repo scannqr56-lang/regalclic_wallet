@@ -63,7 +63,6 @@ Deno.serve(async (req) => {
     const googleToken = await getGoogleAccessToken().catch(() => null);
     const result = await processMembershipWalletSync(admin, membershipId, {
       googleToken,
-      strict: false,
     });
 
     if (result.skipped) {
@@ -79,6 +78,7 @@ Deno.serve(async (req) => {
         synced: false,
         error: parts.join(" | ") || "Synchronisation incomplète",
         details: result.syncResult,
+        targets: result.targets,
       }, 502);
     }
 
@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
       synced: true,
       google: result.syncResult.google,
       apple: result.syncResult.apple,
+      targets: result.targets,
     });
   } catch (e) {
     return jsonResponse({
