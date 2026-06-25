@@ -75,6 +75,8 @@ export default function DashboardHomePage() {
   }
 
   const programLabel = loyaltyProgram?.type === 'stamps' ? 'Tampons' : 'Points';
+  const customersCount = loadingStats ? null : (stats?.customers_count ?? 0);
+  const showOnboarding = loyaltyProgram && customersCount === 0;
 
   return (
     <DashboardLayout
@@ -82,6 +84,28 @@ export default function DashboardHomePage() {
       description="Vue d'ensemble de votre programme de fidélité."
     >
       <div className="space-y-6">
+        {showOnboarding ? (
+          <Card className="border-rc-teal/40 bg-gradient-to-r from-rc-teal/5 to-transparent">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Prêt pour votre premier client</CardTitle>
+              <CardDescription>
+                Affichez votre QR en boutique pour que vos clients s&apos;inscrivent et ajoutent leur carte Wallet.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild size="sm">
+                <Link to="/dashboard/qr">
+                  <QrCode className="h-4 w-4" />
+                  Voir le QR inscription
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/dashboard/scan">Ouvrir le scanner</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             label="Clients inscrits"

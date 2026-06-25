@@ -91,8 +91,17 @@ select create_public_membership(
 
 - Un restaurateur ne voit que les memberships de **son** commerce (`is_business_member`).
 - Les clients ne s'inscrivent **pas** via insert direct : RPC `create_public_membership` avec service role.
-- `wallet_passes`, `wallet_sync_jobs`, `apple_wallet_registrations` : RLS sans policy client → Edge Functions uniquement.
+- `wallet_sync_jobs` : RLS sans policy client → Edge Functions uniquement.
 
-## Prochaine phase
+## Edge Functions
 
-Phase 2 : bootstrap Vite + React dans `regalclic_wallet` et pages dashboard.
+| Function | JWT | Description |
+|----------|-----|-------------|
+| `public-join` | non | Inscription client |
+| `wallet-apple-pass` | non | Génération `.pkpass` |
+| `wallet-apple-webhook` | non | PassKit web service |
+| `wallet-google` | non | Save to Google Wallet |
+| `wallet-sync-membership` | non* | Sync instantanée (*auth JWT vérifiée dans la fonction) |
+| `wallet-sync-worker` | secret header | File de secours cron |
+
+Voir [`docs/`](../docs/) pour la configuration Apple, Google et sync Wallet.
