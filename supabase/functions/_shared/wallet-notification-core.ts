@@ -1,10 +1,16 @@
 /**
- * Notifications Wallet transactionnelles (Phase 7).
- * Déclenchées par mise à jour de carte — pas des push marketing libres.
+ * Notifications Wallet — plans Apple (changeMessage + APNs) et Google (TEXT_AND_NOTIFY).
+ * Les mises à jour silencieuses rafraîchissent la carte sans message lock-screen.
  */
 
 import type { ApplePassFieldSet } from "./wallet-card-model.ts";
-import type { WalletCardViewModel, WalletProgramType } from "./wallet-card-model.ts";
+import type { WalletCardViewModel } from "./wallet-card-model.ts";
+import {
+  deriveWalletUpdateContext,
+  type WalletNotificationMode,
+  type WalletUpdateContext,
+  type WalletUpdateReason,
+} from "./wallet-update-core.ts";
 
 export type WalletTransactionType =
   | "earn_points"
@@ -56,161 +62,106 @@ export type WalletNotificationPlan = {
   notifyApple: boolean;
   google: GoogleNotificationPayload;
   apple: AppleNotificationHints;
+  updateReason?: WalletUpdateReason;
+  notificationMode?: WalletNotificationMode;
 };
 
-function balanceWord(programType: WalletProgramType, plural = true): string {
-  if (programType === "stamps") return plural ? "tampons" : "tampon";
-  return plural ? "points" : "point";
+const SILENT_PLAN: WalletNotificationPlan = {
+  kind: "none",
+  notifyGoogle: false,
+  notifyApple: false,
+  google: { notify: false, header: "", body: "", kind: "none" },
+  apple: { notifyBalance: false, notifyReward: false },
+  notificationMode: "silent",
+};
+
+function withContext(
+  plan: WalletNotificationPlan,
+  ctx: WalletUpdateContext,
+): WalletNotificationPlan {
+  return {
+    ...plan,
+    updateReason: ctx.reason,
+    notificationMode: ctx.notificationMode,
+  };
 }
 
-function formatEarnedBalanceMessage(
-  programType: WalletProgramType,
-  delta: number,
-  newBalance: number,
-): string {
-  const unit = balanceWord(programType, delta > 1);
-  return `Vous avez gagné ${delta} ${unit}. Nouveau solde : ${newBalance}.`;
+function buildRewardUnlockedVisiblePlan(vm: WalletCardViewModel): WalletNotificationPlan {
+  const count = vm.rewardsAvailable;
+  const rewardLabel = vm.rewardLabel.toLowerCase();
+  const body = count === 1
+    ? `Vous avez une ${rewardLabel} à utiliser !`
+    : `Vous avez ${count} récompenses à utiliser !`;
+
+  return {
+    kind: "reward_unlocked",
+    notifyGoogle: true,
+    notifyApple: true,
+    google: {
+      notify: true,
+      header: "Récompense disponible",
+      body,
+      kind: "reward_unlocked",
+    },
+    apple: {
+      notifyBalance: false,
+      notifyReward: true,
+      rewardChangeMessage: count === 1 ? "Vous avez %@" : "Vous avez %@",
+    },
+    notificationMode: "notify",
+  };
 }
 
-export function resolveWalletNotificationPlan(
+/**
+ * Point d'entrée unique : décide silent vs notify pour une sync membership.
+ */
+export function resolveWalletSyncPlan(
+  vm: WalletCardViewModel,
+  snapshot: WalletPassSyncSnapshot,
+  lastTransaction: LastTransactionSnapshot,
+  options?: {
+    campaignNotify?: { message: string; offer_label?: string | null; title?: string };
+    updateReason?: WalletUpdateReason;
+    notificationMode?: WalletNotificationMode;
+  },
+): WalletNotificationPlan {
+  if (options?.campaignNotify) {
+    return resolveCampaignPromoNotificationPlan(vm, options.campaignNotify);
+  }
+
+  if (options?.updateReason && options?.notificationMode) {
+    const ctx: WalletUpdateContext = {
+      reason: options.updateReason,
+      notificationMode: options.notificationMode,
+    };
+    if (options.notificationMode === "silent") {
+      return withContext(SILENT_PLAN, ctx);
+    }
+    if (options.updateReason === "reward_unlocked") {
+      return withContext(buildRewardUnlockedVisiblePlan(vm), ctx);
+    }
+    return withContext(SILENT_PLAN, ctx);
+  }
+
+  return resolveWalletNotificationPlan(vm, snapshot, lastTransaction);
+}
+
+function resolveWalletNotificationPlan(
   vm: WalletCardViewModel,
   snapshot: WalletPassSyncSnapshot,
   lastTransaction: LastTransactionSnapshot,
 ): WalletNotificationPlan {
-  const silent: WalletNotificationPlan = {
-    kind: "none",
-    notifyGoogle: false,
-    notifyApple: false,
-    google: { notify: false, header: "", body: "", kind: "none" },
-    apple: { notifyBalance: false, notifyReward: false },
-  };
+  const ctx = deriveWalletUpdateContext(lastTransaction, snapshot, vm);
 
-  const prevBalance = snapshot.last_synced_balance;
-  const prevRewards = snapshot.last_synced_rewards_available;
-  const balanceChanged = prevBalance === null ? false : prevBalance !== vm.balance;
-  const rewardsIncreased = prevRewards !== null && vm.rewardsAvailable > prevRewards;
-
-  const txType = lastTransaction?.type ?? null;
-  const isRedeem = txType === "redeem_reward";
-
-  if (isRedeem) {
-    return silent;
+  if (ctx.notificationMode === "silent") {
+    return withContext(SILENT_PLAN, ctx);
   }
 
-  const rewardUnlockedFromTx = lastTransaction && lastTransaction.rewards_delta > 0;
-  const rewardUnlocked = rewardUnlockedFromTx || rewardsIncreased;
-
-  if (rewardUnlocked) {
-    const alreadySyncedRewards = prevRewards !== null && vm.rewardsAvailable <= prevRewards;
-    if (alreadySyncedRewards && !rewardsIncreased) {
-      return silent;
-    }
-
-    const count = vm.rewardsAvailable;
-    const rewardLabel = vm.rewardLabel.toLowerCase();
-    const body = count === 1
-      ? `Vous avez une ${rewardLabel} à utiliser !`
-      : `Vous avez ${count} récompenses à utiliser !`;
-
-    return {
-      kind: "reward_unlocked",
-      notifyGoogle: true,
-      notifyApple: true,
-      google: {
-        notify: true,
-        header: "Récompense disponible",
-        body,
-        kind: "reward_unlocked",
-      },
-      apple: {
-        notifyBalance: false,
-        notifyReward: true,
-        rewardChangeMessage: count === 1 ? "Vous avez %@" : "Vous avez %@",
-      },
-    };
+  if (ctx.reason === "reward_unlocked") {
+    return withContext(buildRewardUnlockedVisiblePlan(vm), ctx);
   }
 
-  if (lastTransaction?.type === "earn_stamp" && lastTransaction.stamps_delta > 0) {
-    const isNewEarn = snapshot.last_synced_balance === null || balanceChanged;
-    if (!isNewEarn) return silent;
-
-    const delta = lastTransaction.stamps_delta;
-    const body = formatEarnedBalanceMessage("stamps", delta, vm.balance);
-    const stampMilestone = vm.programType === "stamps"
-      && snapshot.last_synced_balance !== null
-      && vm.balance === 0
-      && delta > 0;
-
-    return {
-      kind: stampMilestone ? "reward_unlocked" : "stamp_earned",
-      notifyGoogle: true,
-      notifyApple: true,
-      google: {
-        notify: true,
-        header: stampMilestone ? "Tampon complet !" : "Tampon ajouté",
-        body: stampMilestone
-          ? `Votre ${vm.rewardLabel.toLowerCase()} est prête !`
-          : body,
-        kind: stampMilestone ? "reward_unlocked" : "stamp_earned",
-      },
-      apple: {
-        notifyBalance: true,
-        notifyReward: false,
-        balanceChangeMessage: stampMilestone
-          ? "Félicitations — %@ tampons"
-          : "Vous avez maintenant %@ tampons",
-      },
-    };
-  }
-
-  if (lastTransaction?.type === "earn_points" && lastTransaction.points_delta > 0) {
-    const isNewEarn = prevBalance === null || balanceChanged;
-    if (!isNewEarn) return silent;
-
-    const delta = lastTransaction.points_delta;
-    return {
-      kind: "balance_earned",
-      notifyGoogle: true,
-      notifyApple: true,
-      google: {
-        notify: true,
-        header: "Points gagnés",
-        body: formatEarnedBalanceMessage("points", delta, vm.balance),
-        kind: "balance_earned",
-      },
-      apple: {
-        notifyBalance: true,
-        notifyReward: false,
-        balanceChangeMessage: "Vous avez maintenant %@ points",
-      },
-    };
-  }
-
-  if (balanceChanged && !isRedeem) {
-    const increased = prevBalance !== null && vm.balance > prevBalance;
-    if (!increased) return silent;
-
-    return {
-      kind: "balance_updated",
-      notifyGoogle: true,
-      notifyApple: true,
-      google: {
-        notify: true,
-        header: "Solde mis à jour",
-        body: `Votre nouveau solde est de ${vm.balance} ${balanceWord(vm.programType)}.`,
-        kind: "balance_updated",
-      },
-      apple: {
-        notifyBalance: true,
-        notifyReward: false,
-        balanceChangeMessage: vm.programType === "stamps"
-          ? "Vous avez maintenant %@ tampons"
-          : "Vous avez maintenant %@ points",
-      },
-    };
-  }
-
-  return silent;
+  return withContext(SILENT_PLAN, ctx);
 }
 
 export function resolveCampaignPromoNotificationPlan(
@@ -224,6 +175,8 @@ export function resolveCampaignPromoNotificationPlan(
     kind: "campaign_promo",
     notifyGoogle: Boolean(body),
     notifyApple: Boolean(body),
+    updateReason: "promo_offer",
+    notificationMode: "notify",
     google: {
       notify: Boolean(body),
       header,

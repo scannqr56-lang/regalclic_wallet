@@ -7,10 +7,15 @@ import {
 } from "./apple-pass-builder.ts";
 import {
   mergePassSyncSnapshots,
-  resolveCampaignPromoNotificationPlan,
-  resolveWalletNotificationPlan,
+  resolveWalletSyncPlan,
   type LastTransactionSnapshot,
 } from "./wallet-notification-core.ts";
+import {
+  deriveWalletUpdateContext,
+  type UpdateWalletForMembershipParams,
+  type WalletNotificationMode,
+  type WalletUpdateReason,
+} from "./wallet-update-core.ts";
 import { buildWalletCardViewModel } from "./wallet-card-model.ts";
 import { fetchActiveWalletCampaign } from "./wallet-campaign-queries.ts";
 import {
@@ -27,12 +32,15 @@ export const WALLET_SYNC_BASE_BACKOFF_SEC = 30;
 export type WalletSyncSource = "instant" | "worker" | "manual";
 
 export type WalletSyncOptions = {
-  /** Notification promo campagne (Phase 9) — remplace la notif transactionnelle */
+  /** Campagne promo — reason promo_offer, mode notify */
   campaignNotify?: {
     message: string;
     offer_label?: string | null;
     title?: string;
   };
+  /** Override explicite (offres, MAJ commerciale future) */
+  updateReason?: WalletUpdateReason;
+  notificationMode?: WalletNotificationMode;
 };
 
 export type WalletSyncResult = {
@@ -47,6 +55,8 @@ export type WalletSyncResult = {
   };
   notification?: {
     kind: string;
+    reason: WalletUpdateReason;
+    mode: WalletNotificationMode;
     sent_google: boolean;
     sent_apple: boolean;
   };
@@ -311,12 +321,18 @@ export async function syncWalletForMembership(
     : null;
   const dbInput = membershipRowsToWalletCardInput(row, business, lastTransactionAt, activeCampaign);
   const vm = buildWalletCardViewModel(dbInput);
-  const notificationPlan = options?.campaignNotify
-    ? resolveCampaignPromoNotificationPlan(vm, options.campaignNotify)
-    : resolveWalletNotificationPlan(vm, syncSnapshot, lastTransaction);
+
+  const notificationPlan = resolveWalletSyncPlan(vm, syncSnapshot, lastTransaction, {
+    campaignNotify: options?.campaignNotify,
+    updateReason: options?.updateReason,
+    notificationMode: options?.notificationMode,
+  });
+  const ctx = deriveWalletUpdateContext(lastTransaction, syncSnapshot, vm);
 
   result.notification = {
     kind: notificationPlan.kind,
+    reason: notificationPlan.updateReason ?? ctx.reason,
+    mode: notificationPlan.notificationMode ?? ctx.notificationMode,
     sent_google: false,
     sent_apple: false,
   };
@@ -367,9 +383,10 @@ export async function syncWalletForMembership(
         .eq("membership_id", membershipId)
         .eq("platform", "apple");
     } else {
+      // Sync silencieuse : pas de changeMessage Apple (évite notif lock-screen).
       await supabase
         .from("wallet_passes")
-        .update({ last_updated_at: now })
+        .update({ pending_notification: null, last_updated_at: now })
         .eq("membership_id", membershipId)
         .eq("platform", "apple");
     }
@@ -490,7 +507,7 @@ export async function processMembershipWalletSync(
     googleToken?: string | null;
     source?: WalletSyncSource;
     jobId?: string;
-  },
+  } & WalletSyncOptions,
 ) {
   const source = options?.source ?? "instant";
   const targets = await resolveWalletSyncTargets(supabase, membershipId);
@@ -526,6 +543,11 @@ export async function processMembershipWalletSync(
     supabase,
     membershipId,
     options?.googleToken,
+    {
+      campaignNotify: options?.campaignNotify,
+      updateReason: options?.updateReason,
+      notificationMode: options?.notificationMode,
+    },
   );
 
   const targetFlags = { hasGoogle: targets.hasGoogle, hasApple: targets.hasApple };
@@ -542,7 +564,10 @@ export async function processMembershipWalletSync(
       targets: targetFlags,
       skipped: false,
       notificationKind: notif?.kind,
-      notificationSent: Boolean(notif && notif.kind !== "none" && (notif.sent_google || notif.sent_apple)),
+      notificationSent: Boolean(
+        notif?.mode === "notify"
+        && (notif.sent_google || notif.sent_apple),
+      ),
     });
   }
 
@@ -558,6 +583,32 @@ export async function processMembershipWalletSync(
     membership: targets.membership,
     targets: targetFlags,
   };
+}
+
+/**
+ * API centralisée : met à jour Apple + Google avec reason et mode explicites.
+ * N'échoue pas la transaction métier en amont — retourne le résultat sync.
+ */
+export async function updateWalletForMembership(
+  supabase: SupabaseClient,
+  params: UpdateWalletForMembershipParams & { googleToken?: string | null },
+): Promise<WalletSyncResult> {
+  const {
+    membershipId,
+    reason,
+    notificationMode,
+    message,
+    offerLabel,
+    googleToken,
+  } = params;
+
+  return syncWalletForMembership(supabase, membershipId, googleToken, {
+    updateReason: reason,
+    notificationMode,
+    campaignNotify: reason === "promo_offer" && message
+      ? { message, offer_label: offerLabel ?? null }
+      : undefined,
+  });
 }
 
 export { getGoogleAccessToken };

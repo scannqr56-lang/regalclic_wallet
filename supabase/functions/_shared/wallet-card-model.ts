@@ -625,8 +625,10 @@ export type GoogleWalletFieldSet = {
 
 /** IDs référencés par classTemplateInfo — face de carte Google Wallet */
 export const GOOGLE_FACE_MODULE_IDS = {
+  client: "face_client",
   reward: "face_reward",
   next: "face_next",
+  status: "face_status",
   promo: "face_promo",
 } as const;
 
@@ -653,10 +655,11 @@ export function buildGoogleSecondaryLoyaltyPoints(vm: WalletCardViewModel): {
 }
 
 /**
- * Layout face carte Google — sans ceci, seuls points + QR s'affichent (template par défaut).
+ * Layout face carte Google — calqué sur Apple (storeCard) : max 2 colonnes / ligne.
  * @see https://developers.google.com/wallet/retail/loyalty-cards/use-cases/pass-customization
  */
 export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
+  const { client, reward, next, status, promo } = GOOGLE_FACE_MODULE_IDS;
   return {
     cardTemplateOverride: {
       cardRowTemplateInfos: [
@@ -664,7 +667,10 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
           oneItem: {
             item: {
               firstValue: {
-                fields: [{ fieldPath: "object.accountName" }],
+                fields: [
+                  { fieldPath: "object.loyaltyPoints.label" },
+                  { fieldPath: "object.loyaltyPoints.balance" },
+                ],
               },
             },
           },
@@ -673,43 +679,35 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
           twoItems: {
             startItem: {
               firstValue: {
-                fields: [
-                  { fieldPath: "object.loyaltyPoints.label" },
-                  { fieldPath: "object.loyaltyPoints.balance" },
-                ],
+                fields: [{ fieldPath: `object.textModulesData['${client}']` }],
               },
             },
             endItem: {
               firstValue: {
-                fields: [
-                  { fieldPath: "object.secondaryLoyaltyPoints.label" },
-                  { fieldPath: "object.secondaryLoyaltyPoints.balance" },
-                ],
+                fields: [{ fieldPath: `object.textModulesData['${next}']` }],
               },
             },
           },
         },
         {
-          threeItems: {
+          twoItems: {
             startItem: {
               firstValue: {
-                fields: [{
-                  fieldPath: `object.textModulesData['${GOOGLE_FACE_MODULE_IDS.reward}']`,
-                }],
-              },
-            },
-            middleItem: {
-              firstValue: {
-                fields: [{
-                  fieldPath: `object.textModulesData['${GOOGLE_FACE_MODULE_IDS.next}']`,
-                }],
+                fields: [{ fieldPath: `object.textModulesData['${reward}']` }],
               },
             },
             endItem: {
               firstValue: {
-                fields: [{
-                  fieldPath: `object.textModulesData['${GOOGLE_FACE_MODULE_IDS.promo}']`,
-                }],
+                fields: [{ fieldPath: `object.textModulesData['${status}']` }],
+              },
+            },
+          },
+        },
+        {
+          oneItem: {
+            item: {
+              firstValue: {
+                fields: [{ fieldPath: `object.textModulesData['${promo}']` }],
               },
             },
           },
@@ -719,20 +717,43 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
   };
 }
 
+function buildGoogleFaceStatusModule(vm: WalletCardViewModel): GoogleTextModule {
+  if (vm.rewardsAvailableText) {
+    return {
+      id: GOOGLE_FACE_MODULE_IDS.status,
+      header: "Dispo",
+      body: vm.rewardsAvailableText,
+    };
+  }
+  const unit = vm.programType === "stamps" ? "tampons" : "points";
+  const plural = vm.unitsToNextReward > 1 ? unit : unit.replace(/s$/, "") || unit;
+  return {
+    id: GOOGLE_FACE_MODULE_IDS.status,
+    header: "Encore",
+    body: vm.unitsToNextReward > 0 ? `${vm.unitsToNextReward} ${plural}` : "—",
+  };
+}
+
 export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalletFieldSet {
   const secondary = buildGoogleSecondaryLoyaltyPoints(vm);
 
   const textModules: GoogleTextModule[] = [
     {
+      id: GOOGLE_FACE_MODULE_IDS.client,
+      header: "Client",
+      body: vm.customerDisplayName,
+    },
+    {
+      id: GOOGLE_FACE_MODULE_IDS.next,
+      header: "Prochaine",
+      body: vm.nextRewardText,
+    },
+    {
       id: GOOGLE_FACE_MODULE_IDS.reward,
       header: "Récompense",
       body: vm.rewardLabel,
     },
-    {
-      id: GOOGLE_FACE_MODULE_IDS.next,
-      header: WALLET_DEFAULT_TEXTS.nextRewardLabel,
-      body: vm.nextRewardText,
-    },
+    buildGoogleFaceStatusModule(vm),
     {
       id: GOOGLE_FACE_MODULE_IDS.promo,
       header: vm.promoMessage ? vm.promoLabel : " ",
