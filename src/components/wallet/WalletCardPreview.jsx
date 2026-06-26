@@ -3,14 +3,17 @@ import { QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildWalletPreviewModel } from '@/lib/wallet-card-preview';
 
-function PreviewField({ label, value, labelColor, className }) {
+function PreviewField({ label, value, labelColor, valueClassName, className }) {
   if (!value) return null;
   return (
     <div className={cn('min-w-0', className)}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80" style={{ color: labelColor }}>
+      <p
+        className="text-[10px] font-semibold uppercase tracking-wide opacity-80"
+        style={labelColor ? { color: labelColor } : undefined}
+      >
         {label}
       </p>
-      <p className="truncate text-sm font-medium text-white">{value}</p>
+      <p className={cn('truncate text-sm font-medium', valueClassName || 'text-white')}>{value}</p>
     </div>
   );
 }
@@ -63,7 +66,13 @@ function AppleCardFace({ model }) {
               value={`1 ${model.rewardLabel.toLowerCase()} à utiliser`}
               labelColor={model.labelColor}
             />
-          ) : null}
+          ) : (
+            <PreviewField
+              label={model.secondaryMetricLabel}
+              value={String(model.secondaryMetricValue)}
+              labelColor={model.labelColor}
+            />
+          )}
         </div>
 
         {model.promoMessage ? (
@@ -88,60 +97,70 @@ function AppleCardFace({ model }) {
 function GoogleCardFace({ model }) {
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5">
+        {model.logoUrl ? (
+          <img src={model.logoUrl} alt="" className="h-7 w-7 rounded-full object-cover ring-1 ring-slate-200" />
+        ) : (
+          <div
+            className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white"
+            style={{ backgroundColor: model.primaryColor }}
+          >
+            RC
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] text-slate-500">RegalClic</p>
+          <p className="truncate text-sm font-semibold text-slate-900">{model.businessName}</p>
+        </div>
+      </div>
+
       {model.heroUrl ? (
-        <div className="h-24 w-full overflow-hidden">
+        <div className="h-20 w-full overflow-hidden">
           <img src={model.heroUrl} alt="" className="h-full w-full object-cover" />
         </div>
       ) : (
-        <div className="h-3 w-full" style={{ backgroundColor: model.primaryColor }} />
+        <div className="h-2 w-full" style={{ backgroundColor: model.primaryColor }} />
       )}
 
       <div className="space-y-3 p-4">
-        <div className="flex items-center gap-3">
-          {model.logoUrl ? (
-            <img src={model.logoUrl} alt="" className="h-12 w-12 rounded-full object-cover ring-1 ring-slate-200" />
-          ) : (
-            <div
-              className="flex h-12 w-12 items-center justify-center rounded-full text-xs font-bold text-white"
-              style={{ backgroundColor: model.primaryColor }}
-            >
-              RC
-            </div>
-          )}
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-slate-900">{model.businessName}</p>
-            <p className="truncate text-sm text-slate-600">{model.customerDisplayName}</p>
+        <div className="rounded-lg bg-slate-50 px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Client</p>
+          <p className="truncate text-sm font-medium text-slate-900">{model.customerDisplayName}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg px-3 py-2" style={{ backgroundColor: `${model.primaryColor}18` }}>
+            <p className="text-[10px] font-medium text-slate-600">{model.balanceLabel}</p>
+            <p className="text-2xl font-bold tabular-nums" style={{ color: model.primaryColor }}>
+              {model.balance}
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-medium text-slate-600">{model.secondaryMetricLabel}</p>
+            <p className="text-2xl font-bold tabular-nums text-slate-900">{model.secondaryMetricValue}</p>
           </div>
         </div>
 
-        <div className="rounded-xl px-3 py-2" style={{ backgroundColor: `${model.primaryColor}18` }}>
-          <p className="text-xs font-medium text-slate-600">{model.balanceLabel}</p>
-          <p className="text-2xl font-bold tabular-nums" style={{ color: model.primaryColor }}>
-            {model.balance}
-          </p>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <PreviewField
+            label="Récompense"
+            value={model.rewardLabel}
+            valueClassName="text-slate-800 text-xs"
+            className="rounded-lg bg-slate-50 px-2 py-1.5"
+          />
+          <PreviewField
+            label="Prochaine"
+            value={model.nextRewardText}
+            valueClassName="text-slate-800 text-xs"
+            className="rounded-lg bg-slate-50 px-2 py-1.5"
+          />
+          <PreviewField
+            label={model.promoMessage ? 'Offre' : ' '}
+            value={model.promoMessage || model.faceTagline}
+            valueClassName="text-slate-800 text-xs"
+            className="rounded-lg bg-slate-50 px-2 py-1.5"
+          />
         </div>
-
-        <div className="space-y-2 text-sm text-slate-700">
-          <p><span className="font-medium text-slate-500">Programme ·</span> {model.rewardLabel}</p>
-          <p><span className="font-medium text-slate-500">Règle ·</span> {model.earnRuleText}</p>
-          <p><span className="font-medium text-slate-500">Prochaine ·</span> {model.nextRewardText}</p>
-          {model.promoMessage ? (
-            <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-amber-900">{model.promoMessage}</p>
-          ) : null}
-        </div>
-
-        {model.links.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {model.links.map((link) => (
-              <span
-                key={link.id}
-                className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
-              >
-                {link.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
 
         <div className="flex flex-col items-center gap-2 border-t border-slate-100 pt-3">
           <div className="flex h-20 w-20 items-center justify-center rounded-lg border border-slate-200 bg-white">
@@ -150,14 +169,16 @@ function GoogleCardFace({ model }) {
           <p className="font-mono text-xs text-slate-500">{model.cardNumber}</p>
         </div>
 
-        <p className="text-center text-[10px] text-slate-400">Carte propulsée par RegalClic</p>
+        <p className="text-center text-[10px] text-slate-400">
+          Détails (règle, liens, conditions) visibles en ouvrant la carte dans Google Wallet
+        </p>
       </div>
     </div>
   );
 }
 
 /**
- * Aperçu HTML approximatif — non représentatif pixel-perfect Apple/Google.
+ * Aperçu aligné sur le mapping Apple PassKit / Google Wallet (classTemplateInfo).
  */
 export default function WalletCardPreview({ form, loyaltyProgram }) {
   const [variant, setVariant] = useState('apple');
@@ -172,7 +193,7 @@ export default function WalletCardPreview({ form, loyaltyProgram }) {
         <div>
           <p className="text-sm font-semibold text-slate-900">Aperçu de la carte</p>
           <p className="text-xs text-muted-foreground">
-            Simulation visuelle — le rendu réel peut varier sur iPhone et Android.
+            Rendu calqué sur la structure réelle Apple Wallet et Google Wallet.
           </p>
         </div>
         <div className="flex rounded-lg border bg-white p-0.5 text-xs">
@@ -201,9 +222,10 @@ export default function WalletCardPreview({ form, loyaltyProgram }) {
 
       {variant === 'apple' ? <AppleCardFace model={model} /> : <GoogleCardFace model={model} />}
 
-      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-        Les changements s&apos;appliquent aux <strong>nouvelles cartes</strong> dès l&apos;enregistrement.
-        La mise à jour des cartes déjà installées chez vos clients sera proposée dans une prochaine version.
+      <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+        Les cartes déjà installées se mettent à jour après un scan, une sync manuelle (fiche client)
+        ou une activation d&apos;offre promo. Si le téléphone affiche encore l&apos;ancien design,
+        utilisez « Mettre à jour la carte Wallet » sur la fiche client.
       </p>
     </div>
   );

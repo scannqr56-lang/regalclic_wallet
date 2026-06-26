@@ -86,6 +86,11 @@ export function buildWalletPreviewModel(form, loyaltyProgram) {
   const balance = programType === 'stamps' ? PREVIEW_BALANCE_STAMPS : PREVIEW_BALANCE_POINTS;
   const balanceLabel = programType === 'stamps' ? 'Tampons' : 'Points';
   const unitsToNext = computeUnitsToNextReward(programType, balance, loyaltyProgram);
+  const rewardsAvailableSample = programType === 'stamps' ? 0 : 1;
+  const secondaryMetricLabel = rewardsAvailableSample > 0 ? 'Récompense' : 'Encore';
+  const secondaryMetricValue = rewardsAvailableSample > 0
+    ? rewardsAvailableSample
+    : unitsToNext;
 
   const promo = (form.wallet_promo_message || '').trim();
 
@@ -106,6 +111,8 @@ export function buildWalletPreviewModel(form, loyaltyProgram) {
     promoMessage: promo || null,
     walletTerms: (form.wallet_terms || '').trim() || null,
     links: buildPreviewLinks(form),
-    rewardsAvailableSample: programType === 'stamps' ? 0 : 1,
+    rewardsAvailableSample,
+    secondaryMetricLabel,
+    secondaryMetricValue,
   };
 }

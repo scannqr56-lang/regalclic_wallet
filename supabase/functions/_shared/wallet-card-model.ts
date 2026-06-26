@@ -615,14 +615,129 @@ export type GoogleWalletFieldSet = {
   accountName: string;
   loyaltyPointsLabel: string;
   loyaltyPointsBalance: number;
+  secondaryLoyaltyPointsLabel: string;
+  secondaryLoyaltyPointsBalance: number;
   textModulesData: GoogleTextModule[];
   linksModuleData: GoogleLinkModule[];
   alternateText: string;
   notifyMessage: { header: string; body: string };
 };
 
+/** IDs référencés par classTemplateInfo — face de carte Google Wallet */
+export const GOOGLE_FACE_MODULE_IDS = {
+  reward: "face_reward",
+  next: "face_next",
+  promo: "face_promo",
+} as const;
+
+export function buildGoogleSecondaryLoyaltyPoints(vm: WalletCardViewModel): {
+  label: string;
+  balance: { int: number };
+} {
+  if (vm.rewardsAvailable > 0) {
+    return {
+      label: vm.rewardsAvailable > 1 ? "Récompenses" : "Récompense",
+      balance: { int: vm.rewardsAvailable },
+    };
+  }
+  if (vm.unitsToNextReward <= 0) {
+    return {
+      label: "Statut",
+      balance: { int: 0 },
+    };
+  }
+  return {
+    label: "Encore",
+    balance: { int: vm.unitsToNextReward },
+  };
+}
+
+/**
+ * Layout face carte Google — sans ceci, seuls points + QR s'affichent (template par défaut).
+ * @see https://developers.google.com/wallet/retail/loyalty-cards/use-cases/pass-customization
+ */
+export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
+  return {
+    cardTemplateOverride: {
+      cardRowTemplateInfos: [
+        {
+          oneItem: {
+            item: {
+              firstValue: {
+                fields: [{ fieldPath: "object.accountName" }],
+              },
+            },
+          },
+        },
+        {
+          twoItems: {
+            startItem: {
+              firstValue: {
+                fields: [
+                  { fieldPath: "object.loyaltyPoints.label" },
+                  { fieldPath: "object.loyaltyPoints.balance" },
+                ],
+              },
+            },
+            endItem: {
+              firstValue: {
+                fields: [
+                  { fieldPath: "object.secondaryLoyaltyPoints.label" },
+                  { fieldPath: "object.secondaryLoyaltyPoints.balance" },
+                ],
+              },
+            },
+          },
+        },
+        {
+          threeItems: {
+            startItem: {
+              firstValue: {
+                fields: [{
+                  fieldPath: `object.textModulesData['${GOOGLE_FACE_MODULE_IDS.reward}']`,
+                }],
+              },
+            },
+            middleItem: {
+              firstValue: {
+                fields: [{
+                  fieldPath: `object.textModulesData['${GOOGLE_FACE_MODULE_IDS.next}']`,
+                }],
+              },
+            },
+            endItem: {
+              firstValue: {
+                fields: [{
+                  fieldPath: `object.textModulesData['${GOOGLE_FACE_MODULE_IDS.promo}']`,
+                }],
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+}
+
 export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalletFieldSet {
+  const secondary = buildGoogleSecondaryLoyaltyPoints(vm);
+
   const textModules: GoogleTextModule[] = [
+    {
+      id: GOOGLE_FACE_MODULE_IDS.reward,
+      header: "Récompense",
+      body: vm.rewardLabel,
+    },
+    {
+      id: GOOGLE_FACE_MODULE_IDS.next,
+      header: WALLET_DEFAULT_TEXTS.nextRewardLabel,
+      body: vm.nextRewardText,
+    },
+    {
+      id: GOOGLE_FACE_MODULE_IDS.promo,
+      header: vm.promoMessage ? vm.promoLabel : " ",
+      body: vm.promoMessage || vm.faceTagline,
+    },
     {
       id: "program",
       header: WALLET_DEFAULT_TEXTS.loyaltyLabel,
@@ -632,11 +747,6 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
       id: "earn_rule",
       header: WALLET_DEFAULT_TEXTS.programLabel,
       body: vm.earnRuleText,
-    },
-    {
-      id: "next_reward",
-      header: WALLET_DEFAULT_TEXTS.nextRewardLabel,
-      body: vm.nextRewardText,
     },
   ];
 
@@ -690,6 +800,8 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
     accountName: vm.customerDisplayName,
     loyaltyPointsLabel: vm.balanceLabel,
     loyaltyPointsBalance: vm.balance,
+    secondaryLoyaltyPointsLabel: secondary.label,
+    secondaryLoyaltyPointsBalance: secondary.balance.int,
     textModulesData: textModules,
     linksModuleData,
     alternateText: vm.cardNumber,

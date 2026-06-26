@@ -8,6 +8,7 @@ import {
 } from "./wallet-branding.ts";
 import {
   buildWalletCardViewModel,
+  buildGoogleClassTemplateInfo,
   mapViewModelToGoogleFields,
   type WalletCardDbInput,
   type WalletCardViewModel,
@@ -77,6 +78,8 @@ export function buildGoogleClassBody(vm: WalletCardViewModel): Record<string, un
     programName: vm.businessName,
     reviewStatus: (Deno.env.get("GOOGLE_WALLET_REVIEW_STATUS") || "UNDER_REVIEW").trim(),
     hexBackgroundColor: vm.primaryColorHex,
+    accountNameLabel: "Client",
+    classTemplateInfo: buildGoogleClassTemplateInfo(),
     programLogo: {
       sourceUri: { uri: logoUrl },
       contentDescription: {
@@ -154,9 +157,23 @@ function buildGoogleLinksModule(vm: WalletCardViewModel) {
   };
 }
 
+function buildGoogleLoyaltyPointsFields(fields: ReturnType<typeof mapViewModelToGoogleFields>) {
+  return {
+    loyaltyPoints: {
+      label: fields.loyaltyPointsLabel,
+      balance: { int: fields.loyaltyPointsBalance },
+    },
+    secondaryLoyaltyPoints: {
+      label: fields.secondaryLoyaltyPointsLabel,
+      balance: { int: fields.secondaryLoyaltyPointsBalance },
+    },
+  };
+}
+
 export function buildGoogleObjectBody(vm: WalletCardViewModel, classId: string): Record<string, unknown> {
   const fields = mapViewModelToGoogleFields(vm);
   const linksModuleData = buildGoogleLinksModule(vm);
+  const pointsFields = buildGoogleLoyaltyPointsFields(fields);
 
   const body: Record<string, unknown> = {
     classId,
@@ -169,10 +186,7 @@ export function buildGoogleObjectBody(vm: WalletCardViewModel, classId: string):
       value: vm.qrToken,
       alternateText: fields.alternateText,
     },
-    loyaltyPoints: {
-      label: fields.loyaltyPointsLabel,
-      balance: { int: fields.loyaltyPointsBalance },
-    },
+    ...pointsFields,
     textModulesData: fields.textModulesData,
   };
 
@@ -247,13 +261,10 @@ export function buildGoogleSyncPatchBody(
   const linksModuleData = buildGoogleLinksModule(vm);
 
   const body: Record<string, unknown> = {
-    loyaltyPoints: {
-      label: fields.loyaltyPointsLabel,
-      balance: { int: fields.loyaltyPointsBalance },
-    },
-    textModulesData: fields.textModulesData,
     accountName: fields.accountName,
     notifyPreference: "NOTIFY_ON_UPDATE",
+    ...buildGoogleLoyaltyPointsFields(fields),
+    textModulesData: fields.textModulesData,
   };
 
   const plan = notification;
