@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
   getGoogleAccessToken,
   processMembershipWalletSync,
+  releaseSyncJobForRetry,
 } from "../_shared/wallet-sync-core.ts";
 
 const corsHeaders = {
@@ -50,6 +51,8 @@ Deno.serve(async (req) => {
       try {
         const result = await processMembershipWalletSync(supabase, job.membership_id, {
           googleToken,
+          source: "worker",
+          jobId: job.id,
         });
 
         if (result.skipped) {
@@ -58,17 +61,26 @@ Deno.serve(async (req) => {
         }
 
         if (!result.ok) {
-          throw new Error("Synchronisation wallet incomplète");
+          const parts = [
+            result.syncResult?.google.error,
+            result.syncResult?.apple.error,
+          ].filter(Boolean);
+          const message = parts.join(" | ") || "Synchronisation wallet incomplète";
+          await releaseSyncJobForRetry(supabase, job.id, job.attempt_count ?? 0, message);
+          failed += 1;
+          continue;
         }
 
         processed += 1;
       } catch (jobError) {
         failed += 1;
+        const message = jobError instanceof Error ? jobError.message : String(jobError);
+        await releaseSyncJobForRetry(supabase, job.id, job.attempt_count ?? 0, message);
         console.error("[wallet-sync-worker] Job failed", {
           job_id: job.id,
           membership_id: job.membership_id,
           reason: job.reason,
-          error: jobError instanceof Error ? jobError.message : String(jobError),
+          error: message,
         });
       }
     }

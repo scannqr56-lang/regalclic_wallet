@@ -1,22 +1,27 @@
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   ArrowLeft,
   Gift,
+  Loader2,
   Mail,
   Phone,
+  RefreshCw,
   ScanLine,
   Smartphone,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import {
   fetchMembershipDetail,
+  fetchWalletSyncLogs,
+  formatWalletSyncStatus,
   getCustomerDisplayName,
   getWalletBadges,
 } from '@/lib/customers';
-import { formatTransactionType } from '@/lib/scan';
+import { formatTransactionType, notifyWalletSyncResult, syncMembershipWallet } from '@/lib/scan';
 import { STALE_TIMES } from '@/lib/query-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +73,7 @@ function TransactionHistory({ transactions }) {
 
 export default function CustomerDetailPage() {
   const { membershipId } = useParams();
+  const queryClient = useQueryClient();
   const { business, loyaltyProgram, isLoading: loadingBusiness } = useMyBusiness();
 
   const { data, isLoading, error } = useQuery({
@@ -77,11 +83,31 @@ export default function CustomerDetailPage() {
     staleTime: STALE_TIMES.customers,
   });
 
+  const { data: syncLogs = [] } = useQuery({
+    queryKey: ['wallet-sync-logs', membershipId],
+    queryFn: () => fetchWalletSyncLogs(membershipId),
+    enabled: !!membershipId,
+    staleTime: 30_000,
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: () => syncMembershipWallet(membershipId, { source: 'manual' }),
+    onSuccess: (result) => {
+      notifyWalletSyncResult(result);
+      queryClient.invalidateQueries({ queryKey: ['wallet-sync-logs', membershipId] });
+    },
+    onError: (err) => {
+      toast.error(err?.message || 'Synchronisation impossible');
+    },
+  });
+
   const program = data?.loyalty_program || loyaltyProgram;
   const isStamps = program?.type === 'stamps';
   const membership = data?.membership;
   const customer = data?.customer;
   const walletBadges = getWalletBadges(membership);
+  const lastSync = syncLogs[0] ? formatWalletSyncStatus(syncLogs[0]) : null;
+  const hasWalletTarget = Boolean(membership?.google_object_id || membership?.apple_serial_number);
 
   if (loadingBusiness || isLoading) {
     return (
@@ -240,6 +266,22 @@ export default function CustomerDetailPage() {
                     Scanner / créditer
                   </Link>
                 </Button>
+                {hasWalletTarget ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    disabled={syncMutation.isPending}
+                    onClick={() => syncMutation.mutate()}
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Mettre à jour la carte Wallet
+                  </Button>
+                ) : null}
                 {membership.rewards_available > 0 ? (
                   <p className="flex items-center gap-2 text-xs text-rc-orange">
                     <Gift className="h-3 w-3" />
@@ -250,6 +292,50 @@ export default function CustomerDetailPage() {
                 ) : null}
               </CardContent>
             </Card>
+
+            {hasWalletTarget ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Sync Wallet</CardTitle>
+                  <CardDescription>
+                    {lastSync
+                      ? `Dernière sync : ${lastSync.statusLabel} (${lastSync.sourceLabel}) — ${lastSync.at}`
+                      : 'Aucune synchronisation enregistrée'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {lastSync?.detail ? (
+                    <p className="mb-3 text-xs text-muted-foreground">{lastSync.detail}</p>
+                  ) : null}
+                  {syncLogs.length > 0 ? (
+                    <ul className="space-y-1.5 text-xs text-muted-foreground">
+                      {syncLogs.slice(0, 5).map((log) => {
+                        const fmt = formatWalletSyncStatus(log);
+                        return (
+                          <li key={log.id} className="flex justify-between gap-2 border-b border-slate-100 pb-1.5">
+                            <span>
+                              {fmt.statusLabel}
+                              {fmt.notificationLabel ? (
+                                <span className="ml-1 text-rc-orange">· {fmt.notificationLabel}</span>
+                              ) : null}
+                            </span>
+                            <span className="shrink-0 text-right">
+                              {fmt.sourceLabel}
+                              {' · '}
+                              {new Date(log.created_at).toLocaleDateString('fr-FR')}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Les syncs apparaîtront ici après un scan ou une mise à jour manuelle.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
           </div>
         </div>
       </div>

@@ -2,12 +2,17 @@
 import { SignJWT, importPKCS8 } from "https://esm.sh/jose@5.9.6";
 import {
   REGALCLIC_WALLET_ISSUER_NAME,
-  REGALCLIC_WALLET_LOYALTY_LABEL,
   googleWalletClassId,
   googleWalletObjectId,
   resolveGoogleLogoUrl,
-  resolvePrimaryHex,
 } from "./wallet-branding.ts";
+import {
+  buildWalletCardViewModel,
+  mapViewModelToGoogleFields,
+  type WalletCardDbInput,
+  type WalletCardViewModel,
+} from "./wallet-card-model.ts";
+import type { WalletNotificationPlan } from "./wallet-notification-core.ts";
 
 export class GoogleWalletError extends Error {
   constructor(message: string, public status = 400) {
@@ -18,6 +23,14 @@ export class GoogleWalletError extends Error {
 
 function normalizePrivateKey(value: string) {
   return value.replaceAll("\\n", "\n");
+}
+
+function resolveHeroImageUrl(vm: WalletCardViewModel): string | null {
+  const hero = (vm.heroUrl || "").trim().split("?")[0];
+  if (hero.startsWith("https://")) return hero;
+  const fallback = (Deno.env.get("REGALCLIC_WALLET_STRIP_URL") || "").trim().split("?")[0];
+  if (fallback.startsWith("https://")) return fallback;
+  return null;
 }
 
 export async function getGoogleAccessToken(): Promise<string> {
@@ -55,30 +68,42 @@ export async function getGoogleAccessToken(): Promise<string> {
   return String(data.access_token || "");
 }
 
-function buildGoogleClassBody(businessName: string, logoUrl: string, primaryHex: string) {
-  return {
+export function buildGoogleClassBody(vm: WalletCardViewModel): Record<string, unknown> {
+  const logoUrl = resolveGoogleLogoUrl(vm.logoUrl);
+  const heroUrl = resolveHeroImageUrl(vm);
+
+  const body: Record<string, unknown> = {
     issuerName: REGALCLIC_WALLET_ISSUER_NAME,
-    programName: businessName,
+    programName: vm.businessName,
     reviewStatus: (Deno.env.get("GOOGLE_WALLET_REVIEW_STATUS") || "UNDER_REVIEW").trim(),
-    hexBackgroundColor: primaryHex,
+    hexBackgroundColor: vm.primaryColorHex,
     programLogo: {
       sourceUri: { uri: logoUrl },
       contentDescription: {
-        defaultValue: { language: "fr-FR", value: businessName },
+        defaultValue: { language: "fr-FR", value: vm.businessName },
       },
     },
   };
+
+  if (heroUrl) {
+    body.heroImage = {
+      sourceUri: { uri: heroUrl },
+      contentDescription: {
+        defaultValue: { language: "fr-FR", value: `Carte fidélité ${vm.businessName}` },
+      },
+    };
+  }
+
+  return body;
 }
 
 export async function upsertGoogleClass(
   accessToken: string,
   classId: string,
-  businessName: string,
-  logoUrl: string,
-  primaryHex: string,
+  vm: WalletCardViewModel,
 ) {
   const base = "https://walletobjects.googleapis.com/walletobjects/v1";
-  const classBody = buildGoogleClassBody(businessName, logoUrl, primaryHex);
+  const classBody = buildGoogleClassBody(vm);
 
   const getRes = await fetch(`${base}/loyaltyClass/${encodeURIComponent(classId)}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -117,56 +142,45 @@ export async function upsertGoogleClass(
   }
 }
 
-export type GoogleMembershipContext = {
-  membershipId: string;
-  businessId: string;
-  businessName: string;
-  businessLogoUrl: string | null;
-  primaryColorHex: string | null;
-  customerFirstName: string;
-  cardNumber: string;
-  qrToken: string;
-  programType: "points" | "stamps";
-  balance: number;
-  rewardLabel: string;
-  rewardsAvailable: number;
-};
-
-export function buildGoogleObjectBody(ctx: GoogleMembershipContext, classId: string) {
-  const balanceLabel = ctx.programType === "stamps" ? "Tampons" : "Points";
-  const textModules: Array<{ id: string; header: string; body: string }> = [
-    {
-      id: "program",
-      header: REGALCLIC_WALLET_LOYALTY_LABEL,
-      body: ctx.rewardLabel,
-    },
-  ];
-
-  if (ctx.rewardsAvailable > 0) {
-    textModules.push({
-      id: "reward_available",
-      header: "Récompense disponible",
-      body: `${ctx.rewardsAvailable} à utiliser`,
-    });
-  }
-
+function buildGoogleLinksModule(vm: WalletCardViewModel) {
+  const fields = mapViewModelToGoogleFields(vm);
+  if (fields.linksModuleData.length === 0) return undefined;
   return {
+    uris: fields.linksModuleData.map((link) => ({
+      id: link.id,
+      description: link.description,
+      uri: link.uri,
+    })),
+  };
+}
+
+export function buildGoogleObjectBody(vm: WalletCardViewModel, classId: string): Record<string, unknown> {
+  const fields = mapViewModelToGoogleFields(vm);
+  const linksModuleData = buildGoogleLinksModule(vm);
+
+  const body: Record<string, unknown> = {
     classId,
     state: "ACTIVE",
-    accountId: ctx.membershipId.replaceAll("-", "").slice(0, 20),
-    accountName: ctx.customerFirstName,
+    accountId: vm.membershipId.replaceAll("-", "").slice(0, 20),
+    accountName: fields.accountName,
     notifyPreference: "NOTIFY_ON_UPDATE",
     barcode: {
       type: "QR_CODE",
-      value: ctx.qrToken,
-      alternateText: ctx.cardNumber,
+      value: vm.qrToken,
+      alternateText: fields.alternateText,
     },
     loyaltyPoints: {
-      label: balanceLabel,
-      balance: { int: ctx.balance },
+      label: fields.loyaltyPointsLabel,
+      balance: { int: fields.loyaltyPointsBalance },
     },
-    textModulesData: textModules,
+    textModulesData: fields.textModulesData,
   };
+
+  if (linksModuleData) {
+    body.linksModuleData = linksModuleData;
+  }
+
+  return body;
 }
 
 export async function upsertGoogleObject(
@@ -225,23 +239,38 @@ export async function patchGoogleLoyaltyObject(
   }
 }
 
-export function buildGoogleSyncPatchBody(ctx: GoogleMembershipContext, issuerId: string) {
-  const classId = googleWalletClassId(issuerId, ctx.businessId);
-  const full = buildGoogleObjectBody(ctx, classId);
-  const balanceLabel = ctx.programType === "stamps" ? "tampons" : "points";
+export function buildGoogleSyncPatchBody(
+  vm: WalletCardViewModel,
+  notification?: WalletNotificationPlan,
+): Record<string, unknown> {
+  const fields = mapViewModelToGoogleFields(vm);
+  const linksModuleData = buildGoogleLinksModule(vm);
 
-  return {
-    loyaltyPoints: full.loyaltyPoints,
-    textModulesData: full.textModulesData,
-    accountName: full.accountName,
+  const body: Record<string, unknown> = {
+    loyaltyPoints: {
+      label: fields.loyaltyPointsLabel,
+      balance: { int: fields.loyaltyPointsBalance },
+    },
+    textModulesData: fields.textModulesData,
+    accountName: fields.accountName,
     notifyPreference: "NOTIFY_ON_UPDATE",
-    messages: [{
-      id: `sync-${ctx.membershipId.slice(0, 8)}-${ctx.balance}`,
-      header: "Solde mis à jour",
-      body: `Vous avez maintenant ${ctx.balance} ${balanceLabel}.`,
-      messageType: "TEXT_AND_NOTIFY",
-    }],
   };
+
+  const plan = notification;
+  if (plan?.notifyGoogle && plan.google.notify && plan.google.body) {
+    body.messages = [{
+      id: `sync-${vm.membershipId.slice(0, 8)}-${plan.kind}-${vm.balance}-${Date.now()}`,
+      header: plan.google.header,
+      body: plan.google.body,
+      messageType: "TEXT_AND_NOTIFY",
+    }];
+  }
+
+  if (linksModuleData) {
+    body.linksModuleData = linksModuleData;
+  }
+
+  return body;
 }
 
 export async function buildGoogleSaveUrl(classId: string, objectId: string): Promise<string> {
@@ -274,22 +303,21 @@ export async function buildGoogleSaveUrl(classId: string, objectId: string): Pro
   return `https://pay.google.com/gp/v/save/${token}`;
 }
 
-export async function provisionGoogleWalletForMembership(
-  ctx: GoogleMembershipContext,
+export async function provisionGoogleWalletForDbInput(
+  dbInput: WalletCardDbInput,
 ): Promise<{ saveUrl: string; objectId: string; classId: string }> {
   const issuerId = Deno.env.get("GOOGLE_WALLET_ISSUER_ID") || "";
   if (!issuerId) {
     throw new GoogleWalletError("GOOGLE_WALLET_ISSUER_ID manquant", 500);
   }
 
-  const classId = googleWalletClassId(issuerId, ctx.businessId);
-  const objectId = googleWalletObjectId(issuerId, ctx.membershipId);
-  const logoUrl = resolveGoogleLogoUrl(ctx.businessLogoUrl);
-  const primaryHex = resolvePrimaryHex(ctx.primaryColorHex);
+  const vm = buildWalletCardViewModel(dbInput);
+  const classId = googleWalletClassId(issuerId, vm.businessId);
+  const objectId = googleWalletObjectId(issuerId, vm.membershipId);
 
   const accessToken = await getGoogleAccessToken();
-  await upsertGoogleClass(accessToken, classId, ctx.businessName, logoUrl, primaryHex);
-  await upsertGoogleObject(accessToken, objectId, buildGoogleObjectBody(ctx, classId));
+  await upsertGoogleClass(accessToken, classId, vm);
+  await upsertGoogleObject(accessToken, objectId, buildGoogleObjectBody(vm, classId));
 
   const saveUrl = await buildGoogleSaveUrl(classId, objectId);
   return { saveUrl, objectId, classId };

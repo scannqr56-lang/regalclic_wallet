@@ -143,6 +143,11 @@ export type WalletCardDbInput = {
   business: WalletCardBusinessInput;
   program: WalletCardProgramInput;
   lastTransactionAt?: string | null;
+  /** Campagne promo active (prioritaire sur wallet_promo_message) */
+  activeCampaign?: {
+    message: string;
+    offer_label?: string | null;
+  } | null;
   /** Override style Apple (sinon env ou défaut storeCard) */
   applePassStyle?: WalletApplePassStyle;
 };
@@ -177,6 +182,7 @@ export type WalletCardViewModel = {
   rewardsAvailableText: string | null;
 
   promoMessage: string | null;
+  promoLabel: string;
   walletTerms: string | null;
   faceTagline: string;
 
@@ -377,7 +383,12 @@ export function buildWalletCardViewModel(input: WalletCardDbInput): WalletCardVi
 
   const lastUpdatedAt = input.membership.updated_at || new Date().toISOString();
   const lastTransactionAt = input.lastTransactionAt || null;
-  const promoMessage = (input.business.wallet_promo_message || "").trim() || null;
+  const campaignMessage = (input.activeCampaign?.message || "").trim();
+  const promoMessage = campaignMessage
+    || (input.business.wallet_promo_message || "").trim()
+    || null;
+  const promoLabel = (input.activeCampaign?.offer_label || "").trim()
+    || WALLET_DEFAULT_TEXTS.promoLabel;
   const walletTerms = (input.business.wallet_terms || "").trim() || null;
 
   const balanceWord = programType === "stamps" ? "tampons" : "points";
@@ -412,6 +423,7 @@ export function buildWalletCardViewModel(input: WalletCardDbInput): WalletCardVi
     rewardsAvailableText,
 
     promoMessage,
+    promoLabel,
     walletTerms,
     faceTagline: resolveFaceTagline(promoMessage),
 
@@ -563,7 +575,7 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
   if (vm.promoMessage) {
     backFields.push({
       key: "promo",
-      label: WALLET_DEFAULT_TEXTS.promoLabel,
+      label: vm.promoLabel,
       value: vm.promoMessage,
     });
   }
@@ -639,7 +651,7 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
   if (vm.promoMessage) {
     textModules.push({
       id: "promo",
-      header: WALLET_DEFAULT_TEXTS.promoLabel,
+      header: vm.promoLabel,
       body: vm.promoMessage,
     });
   }

@@ -1,8 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
-  buildApplePkpass,
+  buildPkpassFromDbInput,
+  BUSINESS_WALLET_SELECT,
+  membershipRowsToWalletCardInput,
   membershipSerialNumber,
+  MEMBERSHIP_WALLET_SELECT,
 } from "../_shared/apple-pass-builder.ts";
+import { fetchActiveWalletCampaign } from "../_shared/wallet-campaign-queries.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,7 +44,7 @@ async function loadMembershipContext(
 ) {
   const { data: business, error: businessError } = await admin
     .from("businesses")
-    .select("id, name, slug, logo_url, primary_color, is_active")
+    .select(BUSINESS_WALLET_SELECT)
     .eq("slug", businessSlug)
     .eq("is_active", true)
     .maybeSingle();
@@ -49,18 +53,7 @@ async function loadMembershipContext(
 
   const { data: membership, error: membershipError } = await admin
     .from("customer_memberships")
-    .select(`
-      id,
-      qr_token,
-      points_balance,
-      stamps_balance,
-      rewards_available,
-      apple_serial_number,
-      apple_auth_token,
-      status,
-      customers ( first_name ),
-      loyalty_programs ( type, reward_label )
-    `)
+    .select(MEMBERSHIP_WALLET_SELECT)
     .eq("id", membershipId)
     .eq("business_id", business.id)
     .eq("status", "active")
@@ -68,7 +61,22 @@ async function loadMembershipContext(
   if (membershipError) throw membershipError;
   if (!membership?.qr_token) throw new Error("Carte introuvable");
 
-  return { business, membership };
+  const { data: lastTx } = await admin
+    .from("loyalty_transactions")
+    .select("created_at")
+    .eq("membership_id", membership.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const activeCampaign = await fetchActiveWalletCampaign(admin, business.id);
+
+  return {
+    business,
+    membership,
+    lastTransactionAt: lastTx?.created_at ?? null,
+    activeCampaign,
+  };
 }
 
 async function generatePass(
@@ -77,11 +85,14 @@ async function generatePass(
   businessSlug: string,
   supabaseUrl: string,
 ) {
-  const { business, membership } = await loadMembershipContext(admin, membershipId, businessSlug);
+  const { business, membership, lastTransactionAt, activeCampaign } = await loadMembershipContext(
+    admin,
+    membershipId,
+    businessSlug,
+  );
 
   const passTypeIdentifier = Deno.env.get("APPLE_PASS_TYPE_IDENTIFIER") || "";
   const teamIdentifier = Deno.env.get("APPLE_TEAM_ID") || "";
-  const organizationName = Deno.env.get("APPLE_ORGANIZATION_NAME") || "RegalClic";
   if (!passTypeIdentifier || !teamIdentifier) {
     throw new Error("Secrets Apple manquants (APPLE_PASS_TYPE_IDENTIFIER / APPLE_TEAM_ID)");
   }
@@ -89,26 +100,16 @@ async function generatePass(
   const serialNumber = membership.apple_serial_number || membershipSerialNumber(membership.id);
   const authToken = membership.apple_auth_token || crypto.randomUUID().replaceAll("-", "");
 
-  const program = membership.loyalty_programs as { type?: string; reward_label?: string } | null;
-  const customer = membership.customers as { first_name?: string } | null;
-  const programType = program?.type === "stamps" ? "stamps" : "points";
-  const balance = programType === "stamps"
-    ? Number(membership.stamps_balance || 0)
-    : Number(membership.points_balance || 0);
+  const dbInput = membershipRowsToWalletCardInput(
+    membership,
+    business,
+    lastTransactionAt,
+    activeCampaign,
+  );
 
-  const fileBytes = await buildApplePkpass({
+  const fileBytes = await buildPkpassFromDbInput(dbInput, {
     serialNumber,
     authToken,
-    qrToken: membership.qr_token,
-    businessName: business.name,
-    customerFirstName: customer?.first_name || "Client",
-    organizationName,
-    programType,
-    balance,
-    rewardLabel: program?.reward_label || "Récompense",
-    rewardsAvailable: Number(membership.rewards_available || 0),
-    primaryColorHex: business.primary_color,
-    businessLogoUrl: business.logo_url,
     webServiceURL: `${supabaseUrl}/functions/v1/wallet-apple-webhook`,
     passTypeIdentifier,
     teamIdentifier,

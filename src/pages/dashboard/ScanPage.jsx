@@ -26,6 +26,7 @@ import {
   normalizeScannedValue,
   redeemMembershipReward,
   syncMembershipWallet,
+  notifyWalletSyncResult,
 } from '@/lib/scan';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -91,22 +92,7 @@ function MembershipPanel({
   const syncWallet = async () => {
     try {
       const result = await syncMembershipWallet(membership.id);
-      if (result.skipped) {
-        toast.info('Solde enregistré', {
-          description: 'Le client n\'a pas encore de carte Wallet active sur son téléphone.',
-        });
-        return result;
-      }
-      if (result.synced) {
-        const parts = [];
-        if (result.google?.synced) parts.push('Google Wallet');
-        if (result.apple?.synced) parts.push('Apple Wallet');
-        toast.success('Carte Wallet mise à jour', {
-          description: parts.length
-            ? `${parts.join(' et ')} synchronisé(s).`
-            : 'Le client voit le nouveau solde.',
-        });
-      }
+      notifyWalletSyncResult(result);
       return result;
     } catch (error) {
       toast.warning('Solde enregistré — sync Wallet échouée', {

@@ -21,3 +21,11 @@ jobs:
           curl -sf -X POST \
             -H "x-wallet-sync-secret: ${WALLET_SYNC_SECRET}" \
             "https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/wallet-sync-worker"
+
+      - name: Expire wallet campaigns
+        run: |
+          curl -sf -X POST \
+            -H "x-wallet-sync-secret: ${WALLET_SYNC_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{"action":"expire_due"}' \
+            "https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/wallet-campaign-broadcast"

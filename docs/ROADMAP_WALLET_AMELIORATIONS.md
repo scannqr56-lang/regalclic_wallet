@@ -522,22 +522,18 @@ alter table public.businesses
 ```
 
 #### Checklist Phase 3
-- [ ] `.pkpass` généré sans erreur OpenSSL
-- [ ] Ajout sur iPhone réel OK
-- [ ] Logo restaurant visible
-- [ ] Nom client visible
-- [ ] Solde correct
-- [ ] QR scannable par `/dashboard/scan`
-- [ ] Dos de carte lisible (liens cliquables)
-- [ ] Fallback sans logo commerce
-- [ ] Fallback client sans `last_name`
-- [ ] Contraste couleurs acceptable
+- [x] `.pkpass` généré via `WalletCardViewModel` + `mapViewModelToAppleFields`
+- [x] Style `storeCard` par défaut (override `APPLE_PASS_STYLE=generic`)
+- [x] Nom complet client, `card_number`, prochaine récompense, dos enrichi
+- [x] `strip.png` si `wallet_hero_url` configurée
+- [x] Icon RegalClic séparé du logo commerce
+- [x] `changeMessage` sur solde + récompense disponible
+- [x] Sync webhook (`buildPkpassFromSerial`) aligné sur le nouveau modèle
+- [ ] Validation manuelle iPhone (voir `V1_TEST_PLAN.md`)
 
-#### Fichiers probables
-- `supabase/functions/_shared/apple-pass-builder.ts` (principal)
-- `supabase/functions/_shared/wallet-card-model.ts` (nouveau)
+#### Fichiers modifiés (Phase 3 ✅)
+- `supabase/functions/_shared/apple-pass-builder.ts`
 - `supabase/functions/wallet-apple-pass/index.ts`
-- `supabase/functions/wallet-apple-webhook/index.ts`
 
 #### Risques
 - Changer `generic` → `storeCard` casse passes existants (forcer ré-ajout)
@@ -560,20 +556,19 @@ alter table public.businesses
 7. Harmoniser messages sync avec type transaction (points vs récompense débloquée)
 
 #### Checklist Phase 4
-- [ ] Save to Google Wallet OK
-- [ ] Logo + couleur visibles
-- [ ] Hero image si configurée
-- [ ] Nom client visible
-- [ ] Solde correct après scan
-- [ ] QR scannable
-- [ ] Liens module fonctionnels
-- [ ] Notification test après sync (appareil réel)
-- [ ] Issuer `APPROVED` ou testeurs configurés
+- [x] `WalletCardViewModel` dans class/object/sync Google
+- [x] `heroImage` sur loyaltyClass si bannière configurée
+- [x] `linksModuleData` (site, commande, Instagram)
+- [x] `textModulesData` enrichi (règle, prochaine récomp., promo, MAJ, conditions)
+- [x] `accountName` = nom complet client
+- [x] PATCH class à chaque provision (logo, couleur, hero)
+- [x] Sync alignée sur `buildGoogleSyncPatchBody(vm)`
+- [ ] Validation manuelle Android (voir `V1_TEST_PLAN.md`)
 
-#### Fichiers probables
+#### Fichiers modifiés (Phase 4 ✅)
 - `supabase/functions/_shared/google-wallet-core.ts`
 - `supabase/functions/wallet-google/index.ts`
-- `supabase/functions/_shared/wallet-card-model.ts`
+- `supabase/functions/_shared/wallet-sync-core.ts`
 
 #### Risques
 - `heroImage` URL non HTTPS → rejet API
@@ -602,17 +597,17 @@ alter table public.businesses
 - **Cartes existantes** : bouton « Mettre à jour toutes les cartes » (Phase 6/9) — pas automatique au save
 
 #### Checklist Phase 5
-- [ ] Upload logo OK (existant)
-- [ ] Upload bannière OK
-- [ ] Couleurs sauvegardées
-- [ ] Preview HTML visible
-- [ ] Textes promo/conditions sauvegardés
-- [ ] Liens validés (URL)
+- [x] Upload logo + bannière (Phase 2, section Commerce)
+- [x] Couleurs sauvegardées avec validation hex
+- [x] Preview HTML visible (`WalletCardPreview` — onglets Apple / Google)
+- [x] Textes promo/conditions + liens dans le formulaire
+- [x] Aperçu temps réel lié au programme fidélité
+- [x] Mention cartes existantes vs nouvelles cartes
 
-#### Fichiers probables
-- `src/pages/dashboard/BusinessSettingsPage.jsx` ou `WalletDesignPage.jsx` (nouveau)
-- `src/components/wallet/WalletCardPreview.jsx` (nouveau)
-- `src/lib/supabase.js` (`uploadBusinessHero` à ajouter)
+#### Fichiers créés / modifiés (Phase 5 ✅)
+- `src/components/wallet/WalletCardPreview.jsx`
+- `src/lib/wallet-card-preview.js`
+- `src/pages/dashboard/BusinessSettingsPage.jsx`
 
 ---
 
@@ -635,18 +630,21 @@ alter table public.businesses
 6. Retry exponentiel sur worker pour jobs échoués
 
 #### Checklist Phase 6
-- [ ] Points/tampons toujours enregistrés même si Wallet down
-- [ ] Erreur Wallet loggée avec `membership_id`, plateforme, message
-- [ ] Google sync < 3 s en conditions normales
-- [ ] Apple sync si device enregistré
-- [ ] Pas de faux positif Apple sans installation
-- [ ] Dashboard restaurateur voit statut sync (optionnel toast amélioré)
+- [x] Transaction fidélité jamais bloquée par échec Wallet
+- [x] Table `wallet_sync_logs` + insertion à chaque sync
+- [x] Google sync avec ViewModel complet + MAJ `loyaltyClass`
+- [x] Apple sync uniquement si `apple_wallet_registrations` (push tokens)
+- [x] Retries exponentiels worker (`attempt_count`, `next_retry_at`, max 5)
+- [x] Toasts scan améliorés (succès / partiel / ignoré)
+- [x] Bouton « Mettre à jour la carte Wallet » sur fiche client + historique sync
 
-#### Fichiers probables
+#### Fichiers modifiés (Phase 6 ✅)
+- `supabase/migrations/20250626130000_wallet_sync_enhancements.sql`
 - `supabase/functions/_shared/wallet-sync-core.ts`
 - `supabase/functions/wallet-sync-membership/index.ts`
-- `src/lib/scan.js`
-- Migration `wallet_sync_logs` (optionnel)
+- `supabase/functions/wallet-sync-worker/index.ts`
+- `src/lib/scan.js`, `src/lib/customers.js`
+- `src/pages/dashboard/ScanPage.jsx`, `CustomerDetailPage.jsx`
 
 ---
 
@@ -676,11 +674,15 @@ alter table public.businesses
 - `messages[].messageType = TEXT_AND_NOTIFY` — **limiter la fréquence** (éviter à chaque centime)
 
 #### Checklist Phase 7
+- [x] Module `wallet-notification-core.ts` (plan notif + changeMessage Apple)
+- [x] Migration `wallet_notification_state` (snapshots + pending_notification + logs)
+- [x] Intégration sync Google (`TEXT_AND_NOTIFY`) et Apple (pending → APNs → regen)
+- [x] Déduplication retries (pas de notif si solde déjà synchronisé)
+- [x] Logs `notification_kind` visibles fiche client
 - [ ] Test iPhone : notification après +10 points
 - [ ] Test Android : notification après +10 points
 - [ ] Pas de notification sans changement
 - [ ] Récompense débloquée déclenche message distinct
-- [ ] Logs consultation possible
 
 #### Fichiers probables
 - `supabase/functions/_shared/apple-pass-builder.ts` (changeMessage)
@@ -714,12 +716,14 @@ alter table public.businesses
 - Segmentation, ciblage comportemental, A/B
 
 #### Checklist Phase 8
-- [ ] Créer offre brouillon
-- [ ] Activer offre
-- [ ] Message visible sur carte Google test
-- [ ] Message visible sur carte Apple test (backField ou auxiliary)
-- [ ] Désactivation fin de campagne
-- [ ] Logs par membership
+- [x] Table `wallet_campaigns` + logs broadcast par membership
+- [x] Page admin `/dashboard/offers` (CRUD brouillon, activer, terminer)
+- [x] Edge function `wallet-campaign-broadcast` (activation + fin + expire cron)
+- [x] Message promo sur carte Apple (auxiliary + back) et Google (`textModulesData`)
+- [x] Expiration automatique via cron GitHub
+- [ ] Test message visible sur carte Google
+- [ ] Test message visible sur carte Apple
+- [ ] Désactivation fin de campagne vérifiée sur appareil
 
 #### Fichiers probables
 - `supabase/migrations/20250626xxxx_wallet_campaigns.sql`
@@ -744,11 +748,14 @@ alter table public.businesses
 - Consentement marketing optionnel (Phase 11)
 
 #### Checklist Phase 9
-- [ ] Envoi test 1 carte
-- [ ] Envoi toutes cartes actives d’un commerce
-- [ ] Log succès/échec par membership
-- [ ] Message si 0 carte éligible
-- [ ] Blocage si quota dépassé
+- [x] Plan notif promo (`campaign_promo`) — Apple changeMessage tagline + Google TEXT_AND_NOTIFY
+- [x] Option `notify_on_activate` sur campagne + actions `notify_all` / `notify_test`
+- [x] Quota journalier configurable (`WALLET_CAMPAIGN_MAX_PER_DAY`, défaut 1)
+- [x] Logs `notification_sent` + `notify_batch_id` par membership
+- [x] Alerte admin + affichage quota sur `/dashboard/offers`
+- [ ] Test envoi 1 carte (iPhone + Android)
+- [ ] Test envoi toutes cartes actives
+- [ ] Blocage quota vérifié
 
 ---
 

@@ -13,6 +13,10 @@ Ce dossier contient le schéma de base de données pour la V1 Wallet-first, **in
 | `20250625120004_fix_pgcrypto.sql` | Fix `gen_random_bytes` (schéma `extensions` Supabase) |
 | `20250625120005_wallet_sync_claim.sql` | RPC `claim_wallet_sync_jobs` (worker Phase 7) |
 | `20250626120000_wallet_branding.sql` | Champs branding Wallet (`wallet_promo_message`, hero, liens…) |
+| `20250626130000_wallet_sync_enhancements.sql` | Logs sync `wallet_sync_logs` + retries jobs |
+| `20250626140000_wallet_notification_state.sql` | Snapshots notif Wallet + pending Apple |
+| `20250626150000_wallet_campaigns.sql` | Campagnes promo Wallet + logs broadcast |
+| `20250626160000_wallet_campaign_notifications.sql` | Notif promo campagne + quota batch |
 
 ## Appliquer les migrations
 

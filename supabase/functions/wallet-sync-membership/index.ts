@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { getGoogleAccessToken, processMembershipWalletSync } from "../_shared/wallet-sync-core.ts";
+import {
+  getGoogleAccessToken,
+  isWalletSyncPartial,
+  isWalletSyncSuccessful,
+  processMembershipWalletSync,
+} from "../_shared/wallet-sync-core.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +37,8 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const membershipId = String(body.membership_id || "").trim();
+  const source = body.source === "manual" ? "manual" : "instant";
+
   if (!membershipId) {
     return jsonResponse({ error: "membership_id requis" }, 400);
   }
@@ -45,7 +52,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Session invalide" }, 401);
   }
 
-  // Vérification accès restaurateur via RLS
   const { data: membershipCheck, error: accessError } = await userClient
     .from("customer_memberships")
     .select("id")
@@ -63,31 +69,38 @@ Deno.serve(async (req) => {
     const googleToken = await getGoogleAccessToken().catch(() => null);
     const result = await processMembershipWalletSync(admin, membershipId, {
       googleToken,
+      source,
     });
 
     if (result.skipped) {
-      return jsonResponse({ synced: true, skipped: true, message: "Aucune carte Wallet" });
-    }
-
-    if (!result.ok || !result.syncResult) {
-      const parts = [
-        result.syncResult?.google.error,
-        result.syncResult?.apple.error,
-      ].filter(Boolean);
       return jsonResponse({
         synced: false,
-        error: parts.join(" | ") || "Synchronisation incomplète",
-        details: result.syncResult,
+        skipped: true,
+        partial: false,
+        message: "Aucune carte Wallet active sur un téléphone",
         targets: result.targets,
-      }, 502);
+      });
     }
 
+    const syncResult = result.syncResult!;
+    const targetFlags = {
+      hasGoogle: result.targets.hasGoogle,
+      hasApple: result.targets.hasApple,
+    };
+    const synced = isWalletSyncSuccessful(syncResult, targetFlags);
+    const partial = isWalletSyncPartial(syncResult, targetFlags);
+
     return jsonResponse({
-      synced: true,
-      google: result.syncResult.google,
-      apple: result.syncResult.apple,
+      synced,
+      skipped: false,
+      partial,
+      google: syncResult.google,
+      apple: syncResult.apple,
       targets: result.targets,
-    });
+      error: synced
+        ? null
+        : [syncResult.google.error, syncResult.apple.error].filter(Boolean).join(" | ") || null,
+    }, 200);
   } catch (e) {
     return jsonResponse({
       error: e instanceof Error ? e.message : "Erreur inconnue",

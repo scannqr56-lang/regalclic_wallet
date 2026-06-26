@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import WalletCardPreview from '@/components/wallet/WalletCardPreview';
 
 const inputClassName =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -51,7 +52,7 @@ function buildBusinessPayload(form) {
 }
 
 export default function BusinessSettingsPage() {
-  const { user, business, isLoading, refetch } = useMyBusiness();
+  const { user, business, loyaltyProgram, isLoading, refetch } = useMyBusiness();
   const queryClient = useQueryClient();
   const logoRef = useRef(null);
   const heroRef = useRef(null);
@@ -240,8 +241,8 @@ export default function BusinessSettingsPage() {
       title="Mon commerce"
       description={business ? 'Modifiez les informations affichées à vos clients.' : 'Créez votre commerce pour commencer.'}
     >
-      <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
-        <Card>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="max-w-xl">
           <CardHeader>
             <CardTitle>{business ? business.name : 'Nouveau commerce'}</CardTitle>
             <CardDescription>
@@ -322,10 +323,12 @@ export default function BusinessSettingsPage() {
           <CardHeader>
             <CardTitle>Apparence Wallet</CardTitle>
             <CardDescription>
-              Personnalisation affichée sur Apple Wallet et Google Wallet (nouvelles cartes).
+              Personnalisez la carte affichée sur Apple Wallet et Google Wallet. L&apos;aperçu se met à jour en direct.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent>
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
+              <div className="space-y-5 max-w-xl">
             <div className="space-y-2">
               <Label htmlFor="primary_color">Couleur principale</Label>
               <div className="flex gap-3">
@@ -492,9 +495,16 @@ export default function BusinessSettingsPage() {
                 placeholder="https://instagram.com/monrestaurant"
               />
             </div>
+              </div>
+
+              <div className="lg:sticky lg:top-6 lg:self-start">
+                <WalletCardPreview form={form} loyaltyProgram={loyaltyProgram} />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
+        <div className="max-w-xl">
         <Button type="submit" disabled={saveMutation.isPending}>
           {saveMutation.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -503,6 +513,7 @@ export default function BusinessSettingsPage() {
           )}
           {business ? 'Enregistrer' : 'Créer mon commerce'}
         </Button>
+        </div>
       </form>
     </DashboardLayout>
   );

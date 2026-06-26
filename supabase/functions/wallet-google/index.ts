@@ -1,9 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
+  BUSINESS_WALLET_SELECT,
+  membershipRowsToWalletCardInput,
+  MEMBERSHIP_WALLET_SELECT,
+} from "../_shared/apple-pass-builder.ts";
+import {
   GoogleWalletError,
-  provisionGoogleWalletForMembership,
-  type GoogleMembershipContext,
+  provisionGoogleWalletForDbInput,
 } from "../_shared/google-wallet-core.ts";
+import { fetchActiveWalletCampaign } from "../_shared/wallet-campaign-queries.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,14 +22,14 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-async function loadMembershipContext(
+async function loadWalletCardDbInput(
   admin: ReturnType<typeof createClient>,
   membershipId: string,
   businessSlug: string,
-): Promise<GoogleMembershipContext> {
+) {
   const { data: business, error: businessError } = await admin
     .from("businesses")
-    .select("id, name, slug, logo_url, primary_color, is_active")
+    .select(BUSINESS_WALLET_SELECT)
     .eq("slug", businessSlug)
     .eq("is_active", true)
     .maybeSingle();
@@ -33,18 +38,7 @@ async function loadMembershipContext(
 
   const { data: membership, error: membershipError } = await admin
     .from("customer_memberships")
-    .select(`
-      id,
-      card_number,
-      qr_token,
-      points_balance,
-      stamps_balance,
-      rewards_available,
-      google_object_id,
-      status,
-      customers ( first_name ),
-      loyalty_programs ( type, reward_label )
-    `)
+    .select(MEMBERSHIP_WALLET_SELECT)
     .eq("id", membershipId)
     .eq("business_id", business.id)
     .eq("status", "active")
@@ -53,27 +47,22 @@ async function loadMembershipContext(
   if (membershipError) throw membershipError;
   if (!membership?.qr_token) throw new GoogleWalletError("Carte introuvable", 404);
 
-  const program = membership.loyalty_programs as { type?: string; reward_label?: string } | null;
-  const customer = membership.customers as { first_name?: string } | null;
-  const programType = program?.type === "stamps" ? "stamps" : "points";
-  const balance = programType === "stamps"
-    ? Number(membership.stamps_balance || 0)
-    : Number(membership.points_balance || 0);
+  const { data: lastTx } = await admin
+    .from("loyalty_transactions")
+    .select("created_at")
+    .eq("membership_id", membership.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  return {
-    membershipId: membership.id,
-    businessId: business.id,
-    businessName: business.name,
-    businessLogoUrl: business.logo_url,
-    primaryColorHex: business.primary_color,
-    customerFirstName: customer?.first_name || "Client",
-    cardNumber: membership.card_number,
-    qrToken: membership.qr_token,
-    programType,
-    balance,
-    rewardLabel: program?.reward_label || "Récompense",
-    rewardsAvailable: Number(membership.rewards_available || 0),
-  };
+  const activeCampaign = await fetchActiveWalletCampaign(admin, business.id);
+
+  return membershipRowsToWalletCardInput(
+    membership,
+    business,
+    lastTx?.created_at ?? null,
+    activeCampaign,
+  );
 }
 
 Deno.serve(async (req) => {
@@ -107,8 +96,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "membership_id et business_slug requis" }, 400);
     }
 
-    const ctx = await loadMembershipContext(admin, membershipId, businessSlug);
-    const { saveUrl, objectId, classId } = await provisionGoogleWalletForMembership(ctx);
+    const dbInput = await loadWalletCardDbInput(admin, membershipId, businessSlug);
+    const { saveUrl, objectId, classId } = await provisionGoogleWalletForDbInput(dbInput);
 
     const now = new Date().toISOString();
 

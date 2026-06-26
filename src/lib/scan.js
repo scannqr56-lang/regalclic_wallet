@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 
 const WALLET_SYNC_MEMBERSHIP_FUNCTION = 'wallet-sync-membership';
@@ -9,9 +10,10 @@ function getSupabaseConfig() {
 }
 
 /**
- * Déclenche la mise à jour instantanée Google Wallet / Apple Wallet après un scan.
+ * Déclenche la mise à jour Google Wallet / Apple Wallet.
+ * Ne lance pas d'exception si la sync échoue (la transaction fidélité reste valide).
  */
-export async function syncMembershipWallet(membershipId) {
+export async function syncMembershipWallet(membershipId, { source = 'instant' } = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     throw new Error('Session expirée');
@@ -27,15 +29,55 @@ export async function syncMembershipWallet(membershipId) {
       apikey: anonKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ membership_id: membershipId }),
+    body: JSON.stringify({ membership_id: membershipId, source }),
   });
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const detail = data.error || data.details?.google?.error || data.details?.apple?.error;
-    throw new Error(detail || 'Synchronisation Wallet impossible');
+    throw new Error(data.error || 'Synchronisation Wallet impossible');
   }
   return data;
+}
+
+/** Toasts UX après sync Wallet (scan ou fiche client). */
+export function notifyWalletSyncResult(result) {
+  if (!result) return;
+
+  if (result.skipped) {
+    toast.info('Solde enregistré', {
+      description: result.message || 'Aucune carte Wallet active sur le téléphone du client.',
+    });
+    return;
+  }
+
+  if (result.synced) {
+    const parts = [];
+    if (result.google?.synced) parts.push('Google Wallet');
+    if (result.apple?.synced) parts.push('Apple Wallet');
+    toast.success('Carte Wallet mise à jour', {
+      description: parts.length
+        ? `${parts.join(' et ')} synchronisé(s).`
+        : 'Le client voit le nouveau solde.',
+    });
+    return;
+  }
+
+  if (result.partial) {
+    const ok = [];
+    const ko = [];
+    if (result.google?.synced) ok.push('Google');
+    else if (result.targets?.hasGoogle) ko.push(result.google?.error || 'Google');
+    if (result.apple?.synced) ok.push('Apple');
+    else if (result.targets?.hasApple) ko.push(result.apple?.error || 'Apple');
+    toast.warning('Sync Wallet partielle', {
+      description: `${ok.join(' OK')}${ko.length ? ` — échec : ${ko.join(' | ')}` : ''}`,
+    });
+    return;
+  }
+
+  toast.warning('Solde enregistré — sync Wallet échouée', {
+    description: result.error || 'Réessayez depuis la fiche client.',
+  });
 }
 
 export async function lookupMembershipByQrToken(qrToken) {

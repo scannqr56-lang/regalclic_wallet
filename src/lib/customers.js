@@ -123,3 +123,47 @@ export function getWalletBadges(membership) {
   if (membership?.apple_serial_number) badges.push('Apple');
   return badges;
 }
+
+export async function fetchWalletSyncLogs(membershipId, limit = 8) {
+  const { data, error } = await supabase
+    .from('wallet_sync_logs')
+    .select('id, source, status, google_synced, apple_synced, google_error, apple_error, notification_sent, notification_kind, created_at')
+    .eq('membership_id', membershipId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+const NOTIFICATION_KIND_LABELS = {
+  balance_earned: 'Points gagnés',
+  stamp_earned: 'Tampon ajouté',
+  reward_unlocked: 'Récompense débloquée',
+  balance_updated: 'Solde mis à jour',
+};
+
+export function formatWalletSyncStatus(log) {
+  if (!log) return null;
+  const labels = {
+    success: 'Réussie',
+    partial: 'Partielle',
+    failed: 'Échouée',
+    skipped: 'Ignorée',
+  };
+  const sourceLabels = {
+    instant: 'Scan',
+    manual: 'Manuelle',
+    worker: 'File d\'attente',
+  };
+  const notificationLabel = log.notification_sent && log.notification_kind
+    ? NOTIFICATION_KIND_LABELS[log.notification_kind] || log.notification_kind
+    : null;
+  return {
+    statusLabel: labels[log.status] || log.status,
+    sourceLabel: sourceLabels[log.source] || log.source,
+    at: new Date(log.created_at).toLocaleString('fr-FR'),
+    detail: log.google_error || log.apple_error || null,
+    notificationLabel,
+  };
+}

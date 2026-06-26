@@ -12,6 +12,7 @@ import QrPage from '@/pages/dashboard/QrPage';
 import ScanPage from '@/pages/dashboard/ScanPage';
 import CustomersPage from '@/pages/dashboard/CustomersPage';
 import CustomerDetailPage from '@/pages/dashboard/CustomerDetailPage';
+import OffersPage from '@/pages/dashboard/OffersPage';
 import JoinPage from '@/pages/join/JoinPage';
 import JoinSuccessPage from '@/pages/join/JoinSuccessPage';
 
@@ -81,6 +82,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <CustomerDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/offers"
+              element={
+                <ProtectedRoute>
+                  <OffersPage />
                 </ProtectedRoute>
               }
             />
