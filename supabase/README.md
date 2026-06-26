@@ -12,6 +12,7 @@ Ce dossier contient le schéma de base de données pour la V1 Wallet-first, **in
 | `20250625120003_v1_storage.sql` | Bucket `business-assets` (logos) |
 | `20250625120004_fix_pgcrypto.sql` | Fix `gen_random_bytes` (schéma `extensions` Supabase) |
 | `20250625120005_wallet_sync_claim.sql` | RPC `claim_wallet_sync_jobs` (worker Phase 7) |
+| `20250626120000_wallet_branding.sql` | Champs branding Wallet (`wallet_promo_message`, hero, liens…) |
 
 ## Appliquer les migrations
 

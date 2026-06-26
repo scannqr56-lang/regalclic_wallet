@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { prepareWalletHero, prepareWalletLogo } from './wallet-image.js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
@@ -73,9 +74,7 @@ export async function fetchBusinessStats(businessId) {
   return data ?? {};
 }
 
-export async function uploadBusinessLogo(businessId, file) {
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
-  const path = `${businessId}/logo.${ext}`;
+async function uploadBusinessAsset(businessId, path, file) {
   const { error: uploadError } = await supabase.storage
     .from('business-assets')
     .upload(path, file, { upsert: true, contentType: file.type });
@@ -83,4 +82,14 @@ export async function uploadBusinessLogo(businessId, file) {
 
   const { data } = supabase.storage.from('business-assets').getPublicUrl(path);
   return `${data.publicUrl}?t=${Date.now()}`;
+}
+
+export async function uploadBusinessLogo(businessId, file) {
+  const prepared = await prepareWalletLogo(file);
+  return uploadBusinessAsset(businessId, `${businessId}/logo.webp`, prepared);
+}
+
+export async function uploadBusinessHero(businessId, file) {
+  const prepared = await prepareWalletHero(file);
+  return uploadBusinessAsset(businessId, `${businessId}/hero.webp`, prepared);
 }
