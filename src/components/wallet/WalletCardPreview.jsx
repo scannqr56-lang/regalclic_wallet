@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildWalletPreviewModel } from '@/lib/wallet-card-preview';
+import StampTicketGrid from '@/components/wallet/StampTicketGrid';
 
 function PreviewField({ label, value, labelColor, valueClassName, className }) {
   if (!value) return null;
@@ -18,7 +19,61 @@ function PreviewField({ label, value, labelColor, valueClassName, className }) {
   );
 }
 
+function PointsBalanceHero({ model }) {
+  return (
+    <div className="text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
+        {model.balanceLabel}
+      </p>
+      <p className="text-4xl font-bold tabular-nums text-white">{model.balance}</p>
+    </div>
+  );
+}
+
+function StampCardBody({ model }) {
+  return (
+    <div className="space-y-4">
+      <StampTicketGrid
+        slots={model.stampSlots}
+        columns={model.stampColumns}
+        balance={model.balance}
+        total={model.stampsRequired}
+        rewardLabel={model.rewardLabel}
+        labelColor={model.labelColor}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <PreviewField label="Client" value={model.customerDisplayName} labelColor={model.labelColor} />
+        {model.rewardsAvailableSample > 0 ? (
+          <PreviewField
+            label="Récompense disponible"
+            value={`1 ${model.rewardLabel.toLowerCase()} à utiliser`}
+            labelColor={model.labelColor}
+          />
+        ) : (
+          <PreviewField label="Programme" value={model.earnRuleText} labelColor={model.labelColor} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PointsCardBody({ model, statusLabel, statusValue }) {
+  return (
+    <div className="space-y-4">
+      <PointsBalanceHero model={model} />
+      <div className="grid grid-cols-2 gap-3">
+        <PreviewField label="Client" value={model.customerDisplayName} labelColor={model.labelColor} />
+        <PreviewField label="Prochaine récompense" value={model.nextRewardText} labelColor={model.labelColor} />
+        <PreviewField label="Récompense" value={model.rewardLabel} labelColor={model.labelColor} />
+        <PreviewField label={statusLabel} value={statusValue} labelColor={model.labelColor} />
+      </div>
+    </div>
+  );
+}
+
 function AppleCardFace({ model }) {
+  const isStamps = model.programType === 'stamps';
+
   return (
     <div
       className="overflow-hidden rounded-2xl shadow-lg ring-1 ring-black/10"
@@ -43,44 +98,28 @@ function AppleCardFace({ model }) {
           )}
           <div className="min-w-0 flex-1 text-right">
             <p className="text-[10px] uppercase tracking-wide text-white/70" style={{ color: model.labelColor }}>
-              Carte de fidélité
+              {isStamps ? 'Carte à tampons' : 'Carte de fidélité'}
             </p>
             <p className="truncate text-sm font-semibold text-white">{model.businessName}</p>
           </div>
         </div>
 
-        <div className="text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
-            {model.balanceLabel}
-          </p>
-          <p className="text-4xl font-bold tabular-nums text-white">{model.balance}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <PreviewField label="Client" value={model.customerDisplayName} labelColor={model.labelColor} />
-          <PreviewField label="Prochaine récompense" value={model.nextRewardText} labelColor={model.labelColor} />
-          <PreviewField label="Récompense" value={model.rewardLabel} labelColor={model.labelColor} />
-          {model.rewardsAvailableSample > 0 ? (
-            <PreviewField
-              label="Récompense disponible"
-              value={`1 ${model.rewardLabel.toLowerCase()} à utiliser`}
-              labelColor={model.labelColor}
-            />
-          ) : (
-            <PreviewField
-              label={model.secondaryMetricLabel}
-              value={String(model.secondaryMetricValue)}
-              labelColor={model.labelColor}
-            />
-          )}
-        </div>
+        {isStamps ? (
+          <StampCardBody model={model} />
+        ) : (
+          <PointsCardBody
+            model={model}
+            statusLabel={model.secondaryMetricLabel}
+            statusValue={String(model.secondaryMetricValue)}
+          />
+        )}
 
         {model.promoMessage ? (
           <p className="rounded-lg bg-white/10 px-3 py-2 text-center text-xs text-white/95">
             {model.promoMessage}
           </p>
         ) : (
-          <p className="text-center text-xs text-white/75">{model.faceTagline}</p>
+          !isStamps && <p className="text-center text-xs text-white/75">{model.faceTagline}</p>
         )}
 
         <div className="flex flex-col items-center gap-2 border-t border-white/15 pt-4">
@@ -95,6 +134,7 @@ function AppleCardFace({ model }) {
 }
 
 function GoogleCardFace({ model }) {
+  const isStamps = model.programType === 'stamps';
   const statusLabel = model.rewardsAvailableSample > 0 ? 'Dispo' : 'Encore';
   const statusValue = model.rewardsAvailableSample > 0
     ? `1 ${model.rewardLabel.toLowerCase()} à utiliser`
@@ -118,26 +158,18 @@ function GoogleCardFace({ model }) {
       </div>
 
       <div className="space-y-4 p-4">
-        <div className="text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
-            {model.balanceLabel}
-          </p>
-          <p className="text-4xl font-bold tabular-nums text-white">{model.balance}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <PreviewField label="Client" value={model.customerDisplayName} labelColor={model.labelColor} />
-          <PreviewField label="Prochaine" value={model.nextRewardText} labelColor={model.labelColor} />
-          <PreviewField label="Récompense" value={model.rewardLabel} labelColor={model.labelColor} />
-          <PreviewField label={statusLabel} value={statusValue} labelColor={model.labelColor} />
-        </div>
+        {isStamps ? (
+          <StampCardBody model={model} />
+        ) : (
+          <PointsCardBody model={model} statusLabel={statusLabel} statusValue={statusValue} />
+        )}
 
         {model.promoMessage ? (
           <p className="rounded-lg bg-white/10 px-3 py-2 text-center text-xs text-white/95">
             {model.promoMessage}
           </p>
         ) : (
-          <p className="text-center text-xs text-white/75">{model.faceTagline}</p>
+          !isStamps && <p className="text-center text-xs text-white/75">{model.faceTagline}</p>
         )}
 
         <div className="flex flex-col items-center gap-2 border-t border-white/15 pt-4">
@@ -166,6 +198,7 @@ export default function WalletCardPreview({ form, loyaltyProgram }) {
     () => buildWalletPreviewModel(form, loyaltyProgram),
     [form, loyaltyProgram],
   );
+  const isStamps = model.programType === 'stamps';
 
   return (
     <div className="space-y-3">
@@ -173,7 +206,9 @@ export default function WalletCardPreview({ form, loyaltyProgram }) {
         <div>
           <p className="text-sm font-semibold text-slate-900">Aperçu de la carte</p>
           <p className="text-xs text-muted-foreground">
-            Google et Apple partagent la même structure (grille 2×2, solde centré, promo pleine largeur).
+            {isStamps
+              ? 'Programme tampons : ticket avec emplacements à valider (aligné Apple / Google).'
+              : 'Google et Apple partagent la même structure (grille 2×2, solde centré, promo pleine largeur).'}
           </p>
         </div>
         <div className="flex rounded-lg border bg-white p-0.5 text-xs">

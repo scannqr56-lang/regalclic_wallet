@@ -9,6 +9,7 @@ import {
 import {
   buildWalletCardViewModel,
   buildGoogleClassTemplateInfo,
+  buildGoogleClassTemplateInfoStamps,
   mapViewModelToGoogleFields,
   type WalletCardDbInput,
   type WalletCardViewModel,
@@ -79,7 +80,9 @@ export function buildGoogleClassBody(vm: WalletCardViewModel): Record<string, un
     reviewStatus: (Deno.env.get("GOOGLE_WALLET_REVIEW_STATUS") || "UNDER_REVIEW").trim(),
     hexBackgroundColor: vm.primaryColorHex,
     accountNameLabel: "Client",
-    classTemplateInfo: buildGoogleClassTemplateInfo(),
+    classTemplateInfo: vm.programType === "stamps"
+      ? buildGoogleClassTemplateInfoStamps()
+      : buildGoogleClassTemplateInfo(),
     programLogo: {
       sourceUri: { uri: logoUrl },
       contentDescription: {

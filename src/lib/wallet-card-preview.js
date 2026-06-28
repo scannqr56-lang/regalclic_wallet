@@ -3,6 +3,11 @@
  */
 
 import { DEFAULT_LABEL_COLOR, DEFAULT_PRIMARY_COLOR, normalizeHexColor } from './wallet-colors';
+import {
+  buildStampSlots,
+  resolveStampGridColumns,
+  resolveStampsRequired,
+} from './stamp-grid';
 
 export const PREVIEW_CUSTOMER_NAME = 'Jean Dupont';
 export const PREVIEW_CARD_NUMBER = 'RC-PREVIEW01';
@@ -93,8 +98,12 @@ export function buildWalletPreviewModel(form, loyaltyProgram) {
     : unitsToNext;
 
   const promo = (form.wallet_promo_message || '').trim();
+  const stampsRequired = programType === 'stamps' ? resolveStampsRequired(loyaltyProgram) : null;
+  const stampColumns = stampsRequired ? resolveStampGridColumns(stampsRequired) : null;
+  const stampSlots = stampsRequired ? buildStampSlots(balance, stampsRequired) : null;
 
   return {
+    programType,
     businessName: (form.name || '').trim() || 'Mon commerce',
     customerDisplayName: PREVIEW_CUSTOMER_NAME,
     cardNumber: PREVIEW_CARD_NUMBER,
@@ -114,5 +123,8 @@ export function buildWalletPreviewModel(form, loyaltyProgram) {
     rewardsAvailableSample,
     secondaryMetricLabel,
     secondaryMetricValue,
+    stampsRequired,
+    stampColumns,
+    stampSlots,
   };
 }
