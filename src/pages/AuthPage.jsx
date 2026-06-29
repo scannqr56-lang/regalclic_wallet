@@ -115,10 +115,8 @@ export default function AuthPage() {
             <div className="mb-4 space-y-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <p className="font-medium">Accès refusé pour ce compte</p>
               <p>
-                Si vous êtes administrateur, vérifiez que vous utilisez bien
-                {' '}
-                <strong>admin@regalclic.com</strong>
-                .
+                Ce compte n&apos;est pas reconnu comme administrateur ni comme commerçant
+                actif. Contactez RegalClic si vous pensez qu&apos;il s&apos;agit d&apos;une erreur.
               </p>
               <Button type="button" variant="outline" size="sm" onClick={() => logout()}>
                 Se déconnecter
