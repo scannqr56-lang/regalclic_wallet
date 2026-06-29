@@ -1,15 +1,14 @@
-import { AlertTriangle, Bot, Sparkles } from 'lucide-react';
+import { AlertTriangle, Sparkles } from 'lucide-react';
 import {
   formatGenerationQuotaLine,
   formatUploadQuotaLine,
   getQuotaBlockMessage,
-  PLAN_LABELS,
 } from '@/lib/ai-quota';
 
 export default function AiQuotaBanner({
   quota,
   kind = 'generation',
-  showUsage = true,
+  showUsage = false,
   className = '',
 }) {
   if (!quota) return null;
@@ -17,10 +16,10 @@ export default function AiQuotaBanner({
   if (!quota.assistant_enabled) {
     return (
       <div className={`flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 ${className}`}>
-        <Bot className="mt-0.5 h-4 w-4 shrink-0" />
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <div>
-          <p className="font-medium">Assistant IA indisponible</p>
-          <p className="mt-0.5">L&apos;assistant est temporairement désactivé. Réessayez plus tard.</p>
+          <p className="font-medium">Idées indisponibles pour le moment</p>
+          <p className="mt-0.5">Réessayez plus tard ou contactez RegalClic.</p>
         </div>
       </div>
     );
@@ -28,9 +27,6 @@ export default function AiQuotaBanner({
 
   const section = kind === 'upload' ? quota.upload : quota.generation;
   const blockMessage = getQuotaBlockMessage(quota, kind);
-  const usageLine = kind === 'upload'
-    ? formatUploadQuotaLine(quota)
-    : formatGenerationQuotaLine(quota);
 
   if (!section?.allowed) {
     const isTrialEnded = quota.plan === 'starter' && !quota.trial_available;
@@ -41,12 +37,16 @@ export default function AiQuotaBanner({
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-medium">
-              {isTrialEnded ? 'Essai utilisé — passez à Pro IA' : 'Quota atteint'}
+              {isTrialEnded ? 'Essai terminé' : 'Limite mensuelle atteinte'}
             </p>
-            <p className="mt-0.5">{blockMessage}</p>
+            <p className="mt-0.5">
+              {blockMessage || (kind === 'upload'
+                ? 'Vous avez envoyé tous vos menus prévus ce mois-ci. Vous pouvez toujours modifier un menu existant.'
+                : 'Vous avez utilisé toutes vos idées automatiques ce mois-ci. Vous pouvez toujours créer vos offres manuellement, ou nous contacter pour plus d’idées.')}
+            </p>
             {isTrialEnded ? (
               <p className="mt-2 text-xs text-amber-800">
-                Contactez RegalClic pour activer le plan Pro IA sur votre commerce.
+                Contactez RegalClic pour continuer à recevoir des idées personnalisées.
               </p>
             ) : null}
           </div>
@@ -57,15 +57,16 @@ export default function AiQuotaBanner({
 
   if (!showUsage) return null;
 
+  const usageLine = kind === 'upload'
+    ? formatUploadQuotaLine(quota)
+    : formatGenerationQuotaLine(quota);
+
+  if (!usageLine) return null;
+
   return (
     <div className={`flex flex-wrap items-center gap-2 text-xs text-slate-500 ${className}`}>
       <Sparkles className="h-3.5 w-3.5 text-rc-teal" />
       <span>{usageLine}</span>
-      {quota.plan ? (
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-          {PLAN_LABELS[quota.plan] || quota.plan_label || quota.plan}
-        </span>
-      ) : null}
     </div>
   );
 }
@@ -75,7 +76,7 @@ export function AiUpgradeHint({ quota }) {
 
   return (
     <p className="text-xs text-muted-foreground">
-      Besoin de plus de générations ou d&apos;uploads ? Contactez RegalClic pour passer au plan Pro IA.
+      Besoin de plus d&apos;idées ou de menus ? Contactez RegalClic pour élargir votre forfait.
     </p>
   );
 }

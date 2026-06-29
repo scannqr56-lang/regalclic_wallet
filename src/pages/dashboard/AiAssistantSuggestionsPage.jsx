@@ -235,6 +235,15 @@ export default function AiAssistantSuggestionsPage() {
           }
         }
 
+        if (activeSuggestion.suggestion_type === 'reward') {
+          patch.title = editForm.title?.trim() || activeSuggestion.title;
+          patch.description = editForm.description?.trim() || activeSuggestion.description;
+          if (editForm.recommended_threshold !== '' && editForm.recommended_threshold != null) {
+            patch.recommended_threshold = Number(editForm.recommended_threshold)
+              || activeSuggestion.recommended_threshold;
+          }
+        }
+
         if (activeSuggestion.suggestion_type === 'threshold') {
           patch.recommended_threshold = Number(editForm.recommended_threshold) || activeSuggestion.recommended_threshold;
           patch.description = editForm.description?.trim() || activeSuggestion.description;
@@ -262,7 +271,7 @@ export default function AiAssistantSuggestionsPage() {
 
   if (businessLoading) {
     return (
-      <DashboardLayout title="Validation IA" description="Chargement…">
+      <DashboardLayout title="Choisir mes idées" description="Chargement…">
         <Skeleton className="h-64 w-full" />
       </DashboardLayout>
     );
@@ -270,7 +279,7 @@ export default function AiAssistantSuggestionsPage() {
 
   if (!business) {
     return (
-      <DashboardLayout title="Validation IA">
+      <DashboardLayout title="Choisir mes idées">
         <Card>
           <CardContent className="pt-6">
             <Button asChild>
@@ -291,8 +300,8 @@ export default function AiAssistantSuggestionsPage() {
 
   return (
     <DashboardLayout
-      title="Assistant IA — Validation"
-      description="Hub de décision : utilisez, modifiez ou ignorez chaque suggestion"
+      title="Choisir mes idées"
+      description="Sélectionnez les offres, récompenses et messages à activer — rien n’est publié sans vous"
     >
       <div className="space-y-6">
         <AiAssistantNav />

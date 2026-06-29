@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Check, Copy, ExternalLink, Pencil, Sparkles, X } from 'lucide-react';
+import { Check, ExternalLink, Pencil, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -19,7 +19,10 @@ function MarginBadge({ risk }) {
   };
 
   return (
-    <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-medium', styles[risk] || styles.medium)}>
+    <span
+      title="Impact sur vos coûts"
+      className={cn('rounded-full px-2.5 py-0.5 text-xs font-medium', styles[risk] || styles.medium)}
+    >
       {MARGIN_RISK_LABELS[risk] || risk}
     </span>
   );
@@ -175,7 +178,7 @@ export default function SuggestionCard({
               onClick={() => onUse?.(suggestion)}
             >
               <Sparkles className="h-4 w-4" />
-              Utiliser
+              Choisir cette idée
             </Button>
             <Button
               type="button"
@@ -190,22 +193,12 @@ export default function SuggestionCard({
             <Button
               type="button"
               size="sm"
-              variant="outline"
-              disabled={loading}
-              onClick={() => onCopy?.(suggestion)}
-            >
-              <Copy className="h-4 w-4" />
-              Copier
-            </Button>
-            <Button
-              type="button"
-              size="sm"
               variant="ghost"
               disabled={loading}
               onClick={() => onDiscard?.(suggestion)}
             >
               <X className="h-4 w-4" />
-              Ignorer
+              Pas pour moi
             </Button>
           </div>
         ) : null}
@@ -213,9 +206,9 @@ export default function SuggestionCard({
         {!isHub && suggestion.status === 'pending' ? (
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" size="sm" variant="outline" asChild>
-              <Link to="/dashboard/ai-assistant/suggestions">
+              <Link to="/dashboard/ideas?tab=offers">
                 <Check className="h-4 w-4" />
-                Valider dans le hub
+                Choisir dans mes idées
               </Link>
             </Button>
             <Button
@@ -226,7 +219,7 @@ export default function SuggestionCard({
               onClick={() => onDiscard?.(suggestion)}
             >
               <X className="h-4 w-4" />
-              Ignorer
+              Pas pour moi
             </Button>
           </div>
         ) : null}

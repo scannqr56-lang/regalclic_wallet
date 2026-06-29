@@ -28,6 +28,7 @@ export function buildSuggestionEditForm(suggestion) {
     return {
       title: suggestion.title || '',
       description: suggestion.description || '',
+      recommended_threshold: suggestion.recommended_threshold ?? '',
     };
   }
 
@@ -146,6 +147,13 @@ export function buildProgramRedirectPath(suggestion, formOverrides = {}, loyalty
     if (formOverrides.description?.trim() || suggestion.description) {
       params.set('ai_reward_description', formOverrides.description?.trim() || suggestion.description || '');
     }
+    const threshold = formOverrides.recommended_threshold ?? suggestion.recommended_threshold;
+    if (threshold != null && threshold !== '') {
+      params.set('ai_threshold', String(threshold));
+    }
+    if (loyaltyProgram?.type === 'stamps') {
+      params.set('ai_stamps', '1');
+    }
   }
 
   if (suggestion.suggestion_type === 'threshold') {
@@ -159,6 +167,19 @@ export function buildProgramRedirectPath(suggestion, formOverrides = {}, loyalty
   }
 
   return `/dashboard/program?${params.toString()}`;
+}
+
+export function applyThresholdToProgramPayload(payload, programType, thresholdValue) {
+  const threshold = Number(thresholdValue);
+  if (Number.isNaN(threshold) || threshold <= 0) return null;
+
+  if (programType === 'points') {
+    payload.reward_threshold = threshold;
+  } else {
+    payload.stamps_required = threshold;
+  }
+
+  return threshold;
 }
 
 async function persistLoyaltyProgram({
@@ -252,19 +273,28 @@ export async function applyProgramSuggestion({
     payload.reward_description = formOverrides.description?.trim()
       || suggestion.description
       || payload.reward_description;
+
+    const threshold = applyThresholdToProgramPayload(
+      payload,
+      programType,
+      formOverrides.recommended_threshold ?? suggestion.recommended_threshold,
+    );
+    if (threshold != null) {
+      suggestionPatch.recommended_threshold = threshold;
+    }
+
     suggestionPatch.title = payload.reward_label;
     suggestionPatch.description = payload.reward_description;
   }
 
   if (suggestion.suggestion_type === 'threshold') {
-    const threshold = Number(formOverrides.recommended_threshold ?? suggestion.recommended_threshold);
-    if (Number.isNaN(threshold) || threshold <= 0) {
+    const threshold = applyThresholdToProgramPayload(
+      payload,
+      programType,
+      formOverrides.recommended_threshold ?? suggestion.recommended_threshold,
+    );
+    if (threshold == null) {
       throw new Error('Seuil invalide');
-    }
-    if (programType === 'points') {
-      payload.reward_threshold = threshold;
-    } else {
-      payload.stamps_required = threshold;
     }
     suggestionPatch.recommended_threshold = threshold;
     suggestionPatch.description = formOverrides.description?.trim() || suggestion.description;

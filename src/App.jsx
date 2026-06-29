@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/lib/AuthContext';
@@ -15,18 +15,23 @@ import CustomersPage from '@/pages/dashboard/CustomersPage';
 import CustomerDetailPage from '@/pages/dashboard/CustomerDetailPage';
 import OffersPage from '@/pages/dashboard/OffersPage';
 import AiAssistantUploadPage from '@/pages/dashboard/AiAssistantUploadPage';
-import AiAssistantHomePage from '@/pages/dashboard/AiAssistantHomePage';
 import AiAssistantHistoryPage from '@/pages/dashboard/AiAssistantHistoryPage';
 import AiAssistantMenuPage from '@/pages/dashboard/AiAssistantMenuPage';
 import AiAssistantProfilePage from '@/pages/dashboard/AiAssistantProfilePage';
-import AiAssistantSuggestionsPage from '@/pages/dashboard/AiAssistantSuggestionsPage';
 import AiAssistantRewardsPage from '@/pages/dashboard/AiAssistantRewardsPage';
 import AiAssistantOffersPage from '@/pages/dashboard/AiAssistantOffersPage';
 import AiAssistantNotificationsPage from '@/pages/dashboard/AiAssistantNotificationsPage';
 import AiAssistantCalendarPage from '@/pages/dashboard/AiAssistantCalendarPage';
+import GuidedIdeasPage from '@/pages/dashboard/GuidedIdeasPage';
+import RestaurantPage from '@/pages/dashboard/RestaurantPage';
 import AdminMerchantsPage from '@/pages/admin/AdminMerchantsPage';
 import JoinPage from '@/pages/join/JoinPage';
 import JoinSuccessPage from '@/pages/join/JoinSuccessPage';
+
+function LegacyMenuRedirect() {
+  const { uploadId } = useParams();
+  return <Navigate to={`/dashboard/menu/${uploadId}`} replace />;
+}
 
 export default function App() {
   return (
@@ -106,12 +111,52 @@ export default function App() {
               }
             />
             <Route
-              path="/dashboard/ai-assistant"
+              path="/dashboard/restaurant"
               element={
                 <MerchantProtectedRoute>
-                  <AiAssistantHomePage />
+                  <RestaurantPage />
                 </MerchantProtectedRoute>
               }
+            />
+            <Route
+              path="/dashboard/ideas"
+              element={
+                <MerchantProtectedRoute>
+                  <GuidedIdeasPage />
+                </MerchantProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/menu"
+              element={
+                <MerchantProtectedRoute>
+                  <AiAssistantUploadPage />
+                </MerchantProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/menu/:uploadId"
+              element={
+                <MerchantProtectedRoute>
+                  <AiAssistantMenuPage />
+                </MerchantProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant"
+              element={<Navigate to="/dashboard/ideas" replace />}
+            />
+            <Route
+              path="/dashboard/ai-assistant/suggestions"
+              element={<Navigate to="/dashboard/ideas?tab=offers" replace />}
+            />
+            <Route
+              path="/dashboard/ai-assistant/upload"
+              element={<Navigate to="/dashboard/menu" replace />}
+            />
+            <Route
+              path="/dashboard/ai-assistant/menu/:uploadId"
+              element={<LegacyMenuRedirect />}
             />
             <Route
               path="/dashboard/ai-assistant/history"
@@ -122,34 +167,14 @@ export default function App() {
               }
             />
             <Route
-              path="/dashboard/ai-assistant/upload"
-              element={
-                <MerchantProtectedRoute>
-                  <AiAssistantUploadPage />
-                </MerchantProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/ai-assistant/menu/:uploadId"
-              element={
-                <MerchantProtectedRoute>
-                  <AiAssistantMenuPage />
-                </MerchantProtectedRoute>
-              }
-            />
-            <Route
               path="/dashboard/ai-assistant/profile"
+              element={<Navigate to="/dashboard/restaurant" replace />}
+            />
+            <Route
+              path="/dashboard/ai-assistant/profile/advanced"
               element={
                 <MerchantProtectedRoute>
                   <AiAssistantProfilePage />
-                </MerchantProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/ai-assistant/suggestions"
-              element={
-                <MerchantProtectedRoute>
-                  <AiAssistantSuggestionsPage />
                 </MerchantProtectedRoute>
               }
             />

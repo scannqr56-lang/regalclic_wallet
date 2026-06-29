@@ -8,8 +8,8 @@ export default function AiReadySuggestionsBanner({ insights }) {
   if (!ready && !pendingOffers) return null;
 
   const message = ready > 0
-    ? `${ready} suggestion${ready > 1 ? 's' : ''} promo prête${ready > 1 ? 's' : ''} cette semaine`
-    : `${pendingOffers} offre${pendingOffers > 1 ? 's' : ''} IA en attente de validation`;
+    ? `${ready} idée${ready > 1 ? 's' : ''} promo prête${ready > 1 ? 's' : ''} cette semaine`
+    : `${pendingOffers} offre${pendingOffers > 1 ? 's' : ''} en attente de votre choix`;
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rc-teal/30 bg-rc-teal/5 px-4 py-3 text-sm text-slate-800">
@@ -18,12 +18,12 @@ export default function AiReadySuggestionsBanner({ insights }) {
         <div>
           <p className="font-medium">{message}</p>
           <p className="mt-0.5 text-xs text-slate-600">
-            Rappel dashboard V2 — validez manuellement avant activation Wallet.
+            Rien n&apos;est publié sans votre accord.
           </p>
         </div>
       </div>
       <Link
-        to="/dashboard/ai-assistant/suggestions"
+        to="/dashboard/ideas?tab=offers"
         className="text-sm font-medium text-rc-teal underline"
       >
         Valider maintenant →

@@ -17,9 +17,9 @@ describe('formatBusinessAiActivityLine', () => {
       total_calls: 3,
       by_action: { extract_menu: 1, generate_batch: 2 },
     });
-    expect(line).toContain('3 appels');
-    expect(line).toContain('1 extraction');
-    expect(line).toContain('2 générations');
+    expect(line).toContain('3 actions');
+    expect(line).toContain('1 menu analysé');
+    expect(line).toContain('2 préparations');
   });
 
   it('vide si aucun appel', () => {

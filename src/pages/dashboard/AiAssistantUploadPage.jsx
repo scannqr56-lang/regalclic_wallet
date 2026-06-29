@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import AiAssistantNav from '@/components/ai-assistant/AiAssistantNav';
 import MenuUploadZone from '@/components/ai-assistant/MenuUploadZone';
 import AiQuotaBanner from '@/components/ai-assistant/AiQuotaBanner';
 import AiActivitySummary from '@/components/ai-assistant/AiActivitySummary';
@@ -94,7 +95,7 @@ function UploadRow({ upload, onDelete, deleting }) {
 
       <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
         <Button type="button" variant="outline" size="sm" asChild>
-          <Link to={`/dashboard/ai-assistant/menu/${upload.id}`}>
+          <Link to={`/dashboard/menu/${upload.id}`}>
             {isExtracting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : upload.status === 'extracted' ? (
@@ -176,7 +177,7 @@ export default function AiAssistantUploadPage() {
       await queryClient.invalidateQueries({ queryKey: ['ai-assistant-quota', business.id] });
       toast.success('Menu envoyé');
       if (upload?.id) {
-        navigate(`/dashboard/ai-assistant/menu/${upload.id}`);
+        navigate(`/dashboard/menu/${upload.id}`);
       }
     },
     onError: (error) => {
@@ -201,7 +202,7 @@ export default function AiAssistantUploadPage() {
 
   if (businessLoading) {
     return (
-      <DashboardLayout title="Assistant IA" description="Chargement…">
+      <DashboardLayout title="Mon menu" description="Chargement…">
         <Skeleton className="h-48 w-full" />
       </DashboardLayout>
     );
@@ -210,7 +211,7 @@ export default function AiAssistantUploadPage() {
   if (!business) {
     return (
       <DashboardLayout
-        title="Assistant IA"
+        title="Mon menu"
         description="Uploadez votre menu pour générer des suggestions fidélité"
       >
         <Card>
@@ -236,15 +237,11 @@ export default function AiAssistantUploadPage() {
 
   return (
     <DashboardLayout
-      title="Assistant IA — Menu"
-      description="Uploadez votre carte ou menu (PDF / photo) pour préparer les suggestions"
+      title="Mon menu"
+      description="Importez votre carte pour recevoir des idées d’offres adaptées à vos plats"
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/profile">Profil commerce →</Link>
-          </Button>
-        </div>
+        <AiAssistantNav />
 
         <Card>
           <CardHeader>

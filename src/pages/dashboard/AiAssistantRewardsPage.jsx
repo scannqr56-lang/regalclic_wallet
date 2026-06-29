@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import AiAssistantNav from '@/components/ai-assistant/AiAssistantNav';
 import SuggestionCard from '@/components/ai-assistant/SuggestionCard';
 import AiQuotaBanner from '@/components/ai-assistant/AiQuotaBanner';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
@@ -78,7 +79,7 @@ export default function AiAssistantRewardsPage() {
       await queryClient.invalidateQueries({ queryKey: ['ai-reward-suggestions', business.id] });
       await queryClient.invalidateQueries({ queryKey: ['ai-all-suggestions', business.id] });
       await queryClient.invalidateQueries({ queryKey: ['ai-assistant-quota', business.id] });
-      toast.success('Récompenses générées — validez-les dans le hub');
+      toast.success('Récompenses prêtes — choisissez-les dans Mes idées');
     },
     onError: (error) => {
       toast.error(error?.message || 'Génération impossible');
@@ -123,8 +124,7 @@ export default function AiAssistantRewardsPage() {
 
   const extractedMenus = (menusQuery.data ?? []).filter((row) => row.status === 'extracted');
   const hasProfile = Boolean(profileQuery.data);
-  const hasProgram = Boolean(loyaltyProgram);
-  const canGenerate = extractedMenus.length > 0 && hasProfile && hasProgram;
+  const canGenerate = extractedMenus.length > 0 && hasProfile;
   const quota = quotaQuery.data;
   const generationAllowed = quota?.assistant_enabled && quota?.generation?.allowed;
   const suggestions = suggestionsQuery.data ?? [];
@@ -133,36 +133,17 @@ export default function AiAssistantRewardsPage() {
 
   return (
     <DashboardLayout
-      title="Assistant IA — Récompenses"
-      description="Génération de récompenses et seuils — validation dans le hub"
+      title="Idées de récompenses"
+      description="Propositions basées sur votre menu — à choisir avant activation"
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/suggestions">Validation</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/upload">Menu</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/profile">Profil</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/offers">Offres promo</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/notifications">Notifications</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/calendar">Calendrier</Link>
-          </Button>
-        </div>
+        <AiAssistantNav />
 
         <Card>
           <CardHeader>
             <CardTitle>Générer des récompenses</CardTitle>
             <CardDescription>
-              L&apos;IA propose des récompenses et seuils — validez-les ensuite dans le hub.
+              Des récompenses et seuils adaptés à votre carte — choisissez ensuite ceux à activer.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -172,22 +153,15 @@ export default function AiAssistantRewardsPage() {
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   {!extractedMenus.length ? (
                     <li>
-                      <Link className="underline" to="/dashboard/ai-assistant/upload">
+                      <Link className="underline" to="/dashboard/menu">
                         Menu extrait
                       </Link>
                     </li>
                   ) : null}
                   {!hasProfile ? (
                     <li>
-                      <Link className="underline" to="/dashboard/ai-assistant/profile">
+                      <Link className="underline" to="/dashboard/restaurant">
                         Questionnaire profil
-                      </Link>
-                    </li>
-                  ) : null}
-                  {!hasProgram ? (
-                    <li>
-                      <Link className="underline" to="/dashboard/program">
-                        Programme fidélité
                       </Link>
                     </li>
                   ) : null}
@@ -269,8 +243,8 @@ export default function AiAssistantRewardsPage() {
               </section>
             ) : null}
 
-            <Button variant="outline" asChild>
-              <Link to="/dashboard/ai-assistant/suggestions">Aller au hub de validation →</Link>
+            <Button asChild>
+              <Link to="/dashboard/ideas?tab=offers">Choisir mes idées →</Link>
             </Button>
           </div>
         )}

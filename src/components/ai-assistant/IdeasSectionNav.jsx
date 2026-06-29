@@ -8,7 +8,7 @@ const LINKS = [
   { to: '/dashboard/ai-assistant/history', label: 'Historique' },
 ];
 
-export default function AiAssistantNav({ className = '' }) {
+export default function IdeasSectionNav({ className = '' }) {
   const location = useLocation();
 
   return (

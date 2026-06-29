@@ -52,17 +52,21 @@ export async function fetchGenerationQuota(businessId) {
 
 export function getQuotaBlockMessage(quota, kind = 'generation') {
   if (!quota?.assistant_enabled) {
-    return "L'assistant IA est temporairement indisponible. Réessayez plus tard.";
+    return 'Les idées automatiques sont temporairement indisponibles. Réessayez plus tard.';
   }
 
   const section = kind === 'upload' ? quota.upload : quota.generation;
-  if (section?.reason) return section.reason;
+  if (section?.reason) {
+    return section.reason
+      .replace(/quota/gi, 'limite')
+      .replace(/génération/gi, 'préparation d’idées');
+  }
 
   if (kind === 'upload' && quota.upload && !quota.upload.allowed) {
-    return "Quota d'uploads atteint.";
+    return 'Vous avez envoyé tous vos menus prévus ce mois-ci.';
   }
   if (kind === 'generation' && quota.generation && !quota.generation.allowed) {
-    return 'Quota de génération atteint.';
+    return 'Vous avez utilisé toutes vos idées automatiques ce mois-ci. Vous pouvez toujours créer vos offres manuellement.';
   }
 
   return null;
@@ -72,22 +76,14 @@ export function formatGenerationQuotaLine(quota) {
   const generation = quota?.generation ?? quota;
   if (!generation) return null;
 
-  const parts = [
-    `Générations : ${generation.monthly_used} / ${generation.monthly_limit}`,
-  ];
-  if (generation.trial_available) parts.push('essai gratuit disponible');
-  if (quota?.plan_label) parts.unshift(`Plan ${quota.plan_label}`);
-  return parts.join(' · ');
+  const remaining = Math.max(0, generation.monthly_limit - generation.monthly_used);
+  return `Utilisations restantes ce mois-ci : ${remaining} préparation${remaining > 1 ? 's' : ''} d’idées`;
 }
 
 export function formatUploadQuotaLine(quota) {
   const upload = quota?.upload;
   if (!upload) return null;
 
-  const parts = [
-    `Menus envoyés : ${upload.monthly_used} / ${upload.monthly_limit}`,
-  ];
-  if (upload.trial_available) parts.push('inclus dans l\'essai');
-  if (quota?.plan_label) parts.unshift(`Plan ${quota.plan_label}`);
-  return parts.join(' · ');
+  const remaining = Math.max(0, upload.monthly_limit - upload.monthly_used);
+  return `Menus restants ce mois-ci : ${remaining}`;
 }

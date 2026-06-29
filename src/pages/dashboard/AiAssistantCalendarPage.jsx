@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Copy, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import AiAssistantNav from '@/components/ai-assistant/AiAssistantNav';
 import CalendarItemCard from '@/components/ai-assistant/CalendarItemCard';
 import AiQuotaBanner from '@/components/ai-assistant/AiQuotaBanner';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
@@ -84,7 +85,7 @@ export default function AiAssistantCalendarPage() {
       await queryClient.invalidateQueries({ queryKey: ['ai-calendar-items', business.id] });
       await queryClient.invalidateQueries({ queryKey: ['ai-suggestion-batches', business.id] });
       await queryClient.invalidateQueries({ queryKey: ['ai-assistant-quota', business.id] });
-      toast.success('Calendrier 30 jours généré — validez chaque entrée');
+      toast.success('Planning du mois généré — choisissez les entrées à activer');
     },
     onError: (error) => {
       toast.error(error?.message || 'Génération impossible');
@@ -137,7 +138,7 @@ export default function AiAssistantCalendarPage() {
 
   if (businessLoading) {
     return (
-      <DashboardLayout title="Calendrier IA" description="Chargement…">
+      <DashboardLayout title="Planning du mois" description="Chargement…">
         <Skeleton className="h-64 w-full" />
       </DashboardLayout>
     );
@@ -145,7 +146,7 @@ export default function AiAssistantCalendarPage() {
 
   if (!business) {
     return (
-      <DashboardLayout title="Calendrier IA">
+      <DashboardLayout title="Planning du mois">
         <Card>
           <CardContent className="pt-6">
             <Button asChild>
@@ -159,37 +160,17 @@ export default function AiAssistantCalendarPage() {
 
   const extractedMenus = (menusQuery.data ?? []).filter((row) => row.status === 'extracted');
   const hasProfile = Boolean(profileQuery.data);
-  const hasProgram = Boolean(loyaltyProgram);
-  const canGenerate = extractedMenus.length > 0 && hasProfile && hasProgram;
+  const canGenerate = extractedMenus.length > 0 && hasProfile;
   const quota = quotaQuery.data;
   const generationAllowed = quota?.assistant_enabled && quota?.generation?.allowed;
 
   return (
     <DashboardLayout
-      title="Assistant IA — Calendrier marketing"
-      description="Plan marketing 30 jours — aucun envoi automatique"
+      title="Planning du mois"
+      description="Idées d’actions sur 30 jours — aucun envoi automatique"
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/upload">Menu</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/profile">Profil</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/suggestions">Validation</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/rewards">Récompenses</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/offers">Offres promo</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/notifications">Notifications</Link>
-          </Button>
-        </div>
+        <AiAssistantNav />
 
         <Card>
           <CardHeader>
@@ -198,7 +179,7 @@ export default function AiAssistantCalendarPage() {
               <CardTitle>Générer le calendrier 30 jours</CardTitle>
             </div>
             <CardDescription>
-              L&apos;IA propose une action par jour — vous validez avant toute campagne Wallet.
+              Une idée par jour pour vos campagnes — rien n’est publié sans votre accord.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -208,22 +189,15 @@ export default function AiAssistantCalendarPage() {
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   {!extractedMenus.length ? (
                     <li>
-                      <Link className="underline" to="/dashboard/ai-assistant/upload">
+                      <Link className="underline" to="/dashboard/menu">
                         Menu extrait
                       </Link>
                     </li>
                   ) : null}
                   {!hasProfile ? (
                     <li>
-                      <Link className="underline" to="/dashboard/ai-assistant/profile">
+                      <Link className="underline" to="/dashboard/restaurant">
                         Questionnaire profil
-                      </Link>
-                    </li>
-                  ) : null}
-                  {!hasProgram ? (
-                    <li>
-                      <Link className="underline" to="/dashboard/program">
-                        Programme fidélité
                       </Link>
                     </li>
                   ) : null}
@@ -273,7 +247,7 @@ export default function AiAssistantCalendarPage() {
           <section className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-slate-900">
-                Calendrier ({allItems.length} jours)
+                Planning ({allItems.length} jours)
               </h2>
               {weekItems.length > 0 ? (
                 <Button type="button" size="sm" variant="outline" onClick={handleCopyWeek}>

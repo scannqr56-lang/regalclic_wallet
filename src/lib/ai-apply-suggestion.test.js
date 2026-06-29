@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyThresholdToProgramPayload,
   buildSuggestionEditForm,
   filterSuggestions,
   sortSuggestionsByMarginRisk,
@@ -64,12 +65,38 @@ describe('buildSuggestionEditForm', () => {
     expect(form.message).toBeTruthy();
   });
 
-  it('prépare le formulaire récompense', () => {
+  it('prépare le formulaire récompense avec seuil', () => {
     const form = buildSuggestionEditForm({
       ...baseSuggestion,
       suggestion_type: 'reward',
-      description: 'Dessert offert',
+      title: '200 points = menu offert',
+      description: 'Menu doublé gratuit',
+      recommended_threshold: 200,
     });
-    expect(form.description).toBe('Dessert offert');
+    expect(form.title).toBe('200 points = menu offert');
+    expect(form.description).toBe('Menu doublé gratuit');
+    expect(form.recommended_threshold).toBe(200);
+  });
+});
+
+describe('applyThresholdToProgramPayload', () => {
+  it('met à jour reward_threshold pour un programme points', () => {
+    const payload = { reward_threshold: 100, stamps_required: 10 };
+    const applied = applyThresholdToProgramPayload(payload, 'points', 200);
+    expect(applied).toBe(200);
+    expect(payload.reward_threshold).toBe(200);
+  });
+
+  it('met à jour stamps_required pour un programme tampons', () => {
+    const payload = { reward_threshold: 100, stamps_required: 10 };
+    const applied = applyThresholdToProgramPayload(payload, 'stamps', 12);
+    expect(applied).toBe(12);
+    expect(payload.stamps_required).toBe(12);
+  });
+
+  it('ignore un seuil invalide', () => {
+    const payload = { reward_threshold: 100 };
+    expect(applyThresholdToProgramPayload(payload, 'points', null)).toBeNull();
+    expect(payload.reward_threshold).toBe(100);
   });
 });

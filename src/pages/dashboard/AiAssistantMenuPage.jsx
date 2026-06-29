@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
+  ArrowRight,
   Bot,
   ExternalLink,
   Loader2,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import AiAssistantNav from '@/components/ai-assistant/AiAssistantNav';
 import MenuExtractionEditor from '@/components/ai-assistant/MenuExtractionEditor';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { Button } from '@/components/ui/button';
@@ -165,7 +167,7 @@ export default function AiAssistantMenuPage() {
           <CardContent className="pt-6">
             <p className="text-sm text-slate-600">Ce menu n&apos;existe pas ou vous n&apos;y avez pas accès.</p>
             <Button asChild className="mt-4">
-              <Link to="/dashboard/ai-assistant/upload">Retour aux menus</Link>
+              <Link to="/dashboard/menu">Retour aux menus</Link>
             </Button>
           </CardContent>
         </Card>
@@ -179,19 +181,17 @@ export default function AiAssistantMenuPage() {
 
   return (
     <DashboardLayout
-      title="Extraction du menu"
+      title="Mon menu"
       description={upload.file_name}
     >
       <div className="space-y-6">
-        <Button variant="ghost" size="sm" asChild className="-ml-2">
-          <Link to="/dashboard/ai-assistant/upload">
-            <ArrowLeft className="h-4 w-4" />
-            Retour aux menus
-          </Link>
-        </Button>
+        <AiAssistantNav />
 
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/dashboard/ai-assistant/profile">Profil commerce →</Link>
+        <Button variant="ghost" size="sm" asChild className="-ml-2">
+          <Link to="/dashboard/menu">
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </Link>
         </Button>
 
         <Card>
@@ -309,6 +309,25 @@ export default function AiAssistantMenuPage() {
             )}
           </CardContent>
         </Card>
+
+        {isExtracted && itemCount > 0 ? (
+          <Card className="border-rc-teal/30 bg-rc-teal/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Menu prêt</CardTitle>
+              <CardDescription>
+                Vérifiez les plats et prix, puis passez à l&apos;étape suivante pour recevoir des idées d&apos;offres.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild size="lg">
+                <Link to="/dashboard/restaurant">
+                  Mon menu est bon — continuer
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </DashboardLayout>
   );

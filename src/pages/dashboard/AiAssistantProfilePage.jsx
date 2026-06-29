@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClipboardList, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import IdeasSectionNav from '@/components/ai-assistant/IdeasSectionNav';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -161,15 +162,20 @@ export default function AiAssistantProfilePage() {
 
   return (
     <DashboardLayout
-      title="Assistant IA — Profil"
-      description="8 questions pour personnaliser les suggestions fidélité"
+      title="Préférences détaillées"
+      description="Affinez vos idées — optionnel après les 3 questions essentielles"
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/upload">← Menu</Link>
-          </Button>
-        </div>
+        <IdeasSectionNav />
+
+        <Card className="border-slate-200 bg-slate-50">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-4 text-sm text-slate-700">
+            <p>Les questions essentielles sont sur la page Mon restaurant.</p>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/dashboard/restaurant">Retour — 3 questions</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         {loyaltySummary ? (
           <Card className="border-rc-teal/30 bg-rc-teal/5">
@@ -187,51 +193,15 @@ export default function AiAssistantProfilePage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-rc-teal" />
-              <CardTitle>Questionnaire restaurateur</CardTitle>
+              <CardTitle>Questions complémentaires</CardTitle>
             </div>
             <CardDescription>
-              Ces réponses complètent votre menu pour des suggestions plus pertinentes.
-              Enregistrement automatique après 2 s si le formulaire est complet.
+              Jours creux, produits à mettre en avant, ton de communication… pour affiner vos idées.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="business-type">Type de commerce</Label>
-              <select
-                id="business-type"
-                className={selectClassName}
-                value={form.business_type}
-                onChange={(e) => updateForm({ business_type: e.target.value })}
-              >
-                <option value="">Sélectionnez…</option>
-                {BUSINESS_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <QuestionBlock
               number={1}
-              title="Quel est votre objectif principal ?"
-            >
-              <select
-                className={selectClassName}
-                value={form.main_objective}
-                onChange={(e) => updateForm({ main_objective: e.target.value })}
-              >
-                <option value="">Sélectionnez…</option>
-                {MAIN_OBJECTIVE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </QuestionBlock>
-
-            <QuestionBlock
-              number={2}
               title="Quels sont vos jours / heures creuses ?"
               description="Jours calmes et plage horaire (ex. 14h-18h)"
             >
@@ -248,7 +218,7 @@ export default function AiAssistantProfilePage() {
             </QuestionBlock>
 
             <QuestionBlock
-              number={3}
+              number={2}
               title="Quels produits voulez-vous pousser ?"
               description="Un produit par ligne"
             >
@@ -261,7 +231,7 @@ export default function AiAssistantProfilePage() {
             </QuestionBlock>
 
             <QuestionBlock
-              number={4}
+              number={3}
               title="Quelles récompenses êtes-vous prêt à offrir ?"
             >
               <ChipGroup
@@ -272,7 +242,7 @@ export default function AiAssistantProfilePage() {
             </QuestionBlock>
 
             <QuestionBlock
-              number={5}
+              number={4}
               title="Quel est votre ticket moyen ?"
               description="En euros — optionnel mais utile pour calibrer les offres"
             >
@@ -287,30 +257,7 @@ export default function AiAssistantProfilePage() {
             </QuestionBlock>
 
             <QuestionBlock
-              number={6}
-              title="Quel niveau de générosité souhaitez-vous ?"
-            >
-              <div className="grid gap-2 sm:grid-cols-3">
-                {GENEROSITY_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => updateForm({ generosity_level: option.value })}
-                    className={cn(
-                      'rounded-lg border px-3 py-3 text-left text-sm transition-colors',
-                      form.generosity_level === option.value
-                        ? 'border-rc-navy bg-rc-navy text-white'
-                        : 'border-slate-200 bg-slate-50 hover:border-rc-navy/30',
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </QuestionBlock>
-
-            <QuestionBlock
-              number={7}
+              number={5}
               title="Quel ton voulez-vous utiliser ?"
             >
               <div className="flex flex-wrap gap-2">
@@ -333,7 +280,7 @@ export default function AiAssistantProfilePage() {
             </QuestionBlock>
 
             <QuestionBlock
-              number={8}
+              number={6}
               title="Y a-t-il des offres à éviter ?"
               description="Ex. pas de -50%, pas de happy hour le week-end…"
             >
@@ -346,7 +293,7 @@ export default function AiAssistantProfilePage() {
             </QuestionBlock>
 
             <div className="space-y-2 rounded-lg border bg-slate-50 p-4">
-              <Label>Sensibilité marge (optionnel)</Label>
+              <Label>Sensibilité aux coûts (optionnel)</Label>
               <select
                 className={selectClassName}
                 value={form.margin_sensitivity}
@@ -362,7 +309,7 @@ export default function AiAssistantProfilePage() {
               <textarea
                 className={textareaClassName}
                 value={form.notes}
-                placeholder="Notes libres pour l'IA (optionnel)"
+                placeholder="Notes libres (optionnel)"
                 onChange={(e) => updateForm({ notes: e.target.value })}
               />
             </div>
@@ -372,27 +319,11 @@ export default function AiAssistantProfilePage() {
                 {dirty ? 'Modifications non enregistrées' : 'Profil à jour'}
                 {saveMutation.isPending ? ' · Enregistrement…' : ''}
               </p>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" asChild>
-                  <Link to="/dashboard/ai-assistant/suggestions">Validation →</Link>
-                </Button>
-                <Button type="button" variant="outline" asChild>
-                  <Link to="/dashboard/ai-assistant/rewards">Récompenses →</Link>
-                </Button>
-                <Button type="button" variant="outline" asChild>
-                  <Link to="/dashboard/ai-assistant/offers">Offres promo →</Link>
-                </Button>
-                <Button type="button" variant="outline" asChild>
-                  <Link to="/dashboard/ai-assistant/notifications">Notifications →</Link>
-                </Button>
-                <Button type="button" variant="outline" asChild>
-                  <Link to="/dashboard/ai-assistant/calendar">Calendrier →</Link>
-                </Button>
-                <Button
-                  type="button"
-                  disabled={saveMutation.isPending}
-                  onClick={() => saveMutation.mutate()}
-                >
+              <Button
+                type="button"
+                disabled={saveMutation.isPending}
+                onClick={() => saveMutation.mutate()}
+              >
                 {saveMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -400,7 +331,6 @@ export default function AiAssistantProfilePage() {
                 )}
                 Enregistrer
               </Button>
-              </div>
             </div>
           </CardContent>
         </Card>

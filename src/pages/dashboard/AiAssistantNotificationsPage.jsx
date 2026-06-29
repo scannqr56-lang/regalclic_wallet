@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import AiAssistantNav from '@/components/ai-assistant/AiAssistantNav';
 import SuggestionCard from '@/components/ai-assistant/SuggestionCard';
 import AiQuotaBanner from '@/components/ai-assistant/AiQuotaBanner';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
@@ -123,38 +124,18 @@ export default function AiAssistantNotificationsPage() {
 
   const extractedMenus = (menusQuery.data ?? []).filter((row) => row.status === 'extracted');
   const hasProfile = Boolean(profileQuery.data);
-  const hasProgram = Boolean(loyaltyProgram);
-  const canGenerate = extractedMenus.length > 0 && hasProfile && hasProgram;
+  const canGenerate = extractedMenus.length > 0 && hasProfile;
   const quota = quotaQuery.data;
   const generationAllowed = quota?.assistant_enabled && quota?.generation?.allowed;
   const notifications = suggestionsQuery.data ?? [];
 
   return (
     <DashboardLayout
-      title="Assistant IA — Notifications Wallet"
-      description="Messages courts pour mettre à jour les cartes Wallet (promo uniquement)"
+      title="Idées de messages"
+      description="Messages courts pour vos cartes Wallet — à valider avant envoi"
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/upload">Menu</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/profile">Profil</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/suggestions">Validation</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/rewards">Récompenses</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/offers">Offres promo</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/calendar">Calendrier</Link>
-          </Button>
-        </div>
+        <AiAssistantNav />
 
         <Card>
           <CardHeader>
@@ -173,22 +154,15 @@ export default function AiAssistantNotificationsPage() {
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   {!extractedMenus.length ? (
                     <li>
-                      <Link className="underline" to="/dashboard/ai-assistant/upload">
+                      <Link className="underline" to="/dashboard/menu">
                         Menu extrait
                       </Link>
                     </li>
                   ) : null}
                   {!hasProfile ? (
                     <li>
-                      <Link className="underline" to="/dashboard/ai-assistant/profile">
+                      <Link className="underline" to="/dashboard/restaurant">
                         Questionnaire profil
-                      </Link>
-                    </li>
-                  ) : null}
-                  {!hasProgram ? (
-                    <li>
-                      <Link className="underline" to="/dashboard/program">
-                        Programme fidélité
                       </Link>
                     </li>
                   ) : null}

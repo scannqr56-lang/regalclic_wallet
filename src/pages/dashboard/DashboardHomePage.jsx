@@ -1,41 +1,23 @@
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Users, Sparkles, QrCode, Store, ArrowRight, AlertCircle, ScanLine,
-} from 'lucide-react';
+import { ArrowRight, AlertCircle, ScanLine, QrCode } from 'lucide-react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
-import { fetchBusinessStats } from '@/lib/supabase';
-import { STALE_TIMES } from '@/lib/query-client';
+import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
+import NextActionCard from '@/components/onboarding/NextActionCard';
+import OnboardingChecklist from '@/components/onboarding/OnboardingChecklist';
+import ProgramStatusCard from '@/components/onboarding/ProgramStatusCard';
+import SimpleStatsRow from '@/components/onboarding/SimpleStatsRow';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function StatCard({ label, value, icon: Icon }) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-6">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rc-navy/10 text-rc-navy">
-          <Icon className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function DashboardHomePage() {
   const { business, loyaltyProgram, isLoading } = useMyBusiness();
-
-  const { data: stats, isLoading: loadingStats } = useQuery({
-    queryKey: ['business-stats', business?.id],
-    queryFn: () => fetchBusinessStats(business.id),
-    enabled: !!business?.id,
-    staleTime: STALE_TIMES.stats,
-  });
+  const {
+    stats,
+    progress,
+    isLoading: progressLoading,
+  } = useOnboardingProgress(business, loyaltyProgram);
 
   if (isLoading) {
     return (
@@ -49,7 +31,7 @@ export default function DashboardHomePage() {
     return (
       <DashboardLayout
         title="Bienvenue sur RegalClic"
-        description="Configurez votre commerce pour démarrer."
+        description="Mettez en place votre fidélité en quelques étapes simples."
       >
         <Card className="max-w-lg">
           <CardHeader>
@@ -58,7 +40,7 @@ export default function DashboardHomePage() {
               Aucun commerce configuré
             </CardTitle>
             <CardDescription>
-              Créez votre restaurant ou commerce pour générer votre QR code d&apos;inscription.
+              Créez votre restaurant ou commerce pour commencer.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -74,138 +56,67 @@ export default function DashboardHomePage() {
     );
   }
 
-  const programLabel = loyaltyProgram?.type === 'stamps' ? 'Tampons' : 'Points';
-  const customersCount = loadingStats ? null : (stats?.customers_count ?? 0);
-  const showOnboarding = loyaltyProgram && customersCount === 0;
+  const showQuickLinks = progress?.onboardingComplete;
 
   return (
     <DashboardLayout
-      title={business.name}
-      description="Vue d'ensemble de votre programme de fidélité."
+      title={`Bienvenue${business.name ? `, ${business.name}` : ''}`}
+      description="Mettez en place votre fidélité en quelques étapes simples."
     >
       <div className="space-y-6">
-        {showOnboarding ? (
-          <Card className="border-rc-teal/40 bg-gradient-to-r from-rc-teal/5 to-transparent">
+        <NextActionCard action={progress?.nextAction} loading={progressLoading} />
+
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+          <OnboardingChecklist
+            steps={progress?.checklistSteps}
+            currentStepIndex={progress?.currentStepIndex ?? 0}
+            completedCount={progress?.completedCount ?? 0}
+            totalSteps={progress?.totalSteps ?? 6}
+            loading={progressLoading}
+          />
+
+          <div className="space-y-4">
+            <ProgramStatusCard
+              programStatus={progress?.programStatus}
+              loading={progressLoading}
+            />
+
+            <SimpleStatsRow
+              stats={stats}
+              loyaltyProgram={loyaltyProgram}
+              loading={progressLoading}
+            />
+          </div>
+        </div>
+
+        {showQuickLinks ? (
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Prêt pour votre premier client</CardTitle>
-              <CardDescription>
-                Affichez votre QR en boutique pour que vos clients s&apos;inscrivent et ajoutent leur carte Wallet.
-              </CardDescription>
+              <CardTitle className="text-base">Accès rapide</CardTitle>
+              <CardDescription>Actions du quotidien en caisse</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              <Button asChild size="sm">
-                <Link to="/dashboard/qr">
-                  <QrCode className="h-4 w-4" />
-                  Voir le QR inscription
+              <Button asChild variant="outline" size="sm">
+                <Link to="/dashboard/scan">
+                  <ScanLine className="h-4 w-4" />
+                  Scanner un client
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link to="/dashboard/scan">Ouvrir le scanner</Link>
+                <Link to="/dashboard/qr">
+                  <QrCode className="h-4 w-4" />
+                  QR inscription
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/dashboard/customers">Mes clients</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/dashboard/offers">Mes offres</Link>
               </Button>
             </CardContent>
           </Card>
         ) : null}
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <StatCard
-            label="Clients inscrits"
-            value={loadingStats ? '…' : stats?.customers_count ?? 0}
-            icon={Users}
-          />
-          <StatCard
-            label={loyaltyProgram?.type === 'stamps' ? 'Tampons distribués' : 'Points distribués'}
-            value={
-              loadingStats
-                ? '…'
-                : loyaltyProgram?.type === 'stamps'
-                  ? stats?.total_stamps_distributed ?? 0
-                  : stats?.total_points_distributed ?? 0
-            }
-            icon={Sparkles}
-          />
-          <StatCard
-            label="Récompenses en attente"
-            value={loadingStats ? '…' : stats?.rewards_pending ?? 0}
-            icon={Store}
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-base">Commerce</CardTitle>
-              <CardDescription>Nom, logo, couleurs, adresse</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" asChild className="w-full">
-                <Link to="/dashboard/business">Modifier</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-base">Programme {programLabel}</CardTitle>
-              <CardDescription>
-                {loyaltyProgram
-                  ? loyaltyProgram.reward_label || 'Configurer la récompense'
-                  : 'Créer votre programme fidélité'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" asChild className="w-full">
-                <Link to="/dashboard/program">
-                  {loyaltyProgram ? 'Modifier' : 'Créer'}
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-base">QR inscription</CardTitle>
-              <CardDescription>À afficher en boutique pour vos clients</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full" disabled={!loyaltyProgram}>
-                <Link to="/dashboard/qr">
-                  <QrCode className="h-4 w-4" />
-                  Voir le QR code
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow border-rc-teal/30">
-            <CardHeader>
-              <CardTitle className="text-base">Scanner client</CardTitle>
-              <CardDescription>Créditer points ou tampons en caisse</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full" disabled={!loyaltyProgram}>
-                <Link to="/dashboard/scan">
-                  <ScanLine className="h-4 w-4" />
-                  Ouvrir le scanner
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-base">Clients</CardTitle>
-              <CardDescription>Liste et fiches clients inscrits</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" asChild className="w-full" disabled={!loyaltyProgram}>
-                <Link to="/dashboard/customers">
-                  <Users className="h-4 w-4" />
-                  Voir les clients
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </DashboardLayout>
   );

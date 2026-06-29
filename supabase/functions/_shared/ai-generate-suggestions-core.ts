@@ -118,13 +118,32 @@ async function loadGenerationContext(
     .maybeSingle();
 
   if (programError) throw new Error(programError.message);
-  if (!loyaltyProgram) {
-    throw new Error("Configurez votre programme fidélité avant de générer");
-  }
+  const resolvedLoyaltyProgram = loyaltyProgram ?? buildDefaultLoyaltyProgramForGeneration();
 
   const customerInsights = await fetchAiCustomerInsights(userClient, businessId);
 
-  return { menuUpload, profileRow, profile, loyaltyProgram, customerInsights };
+  return { menuUpload, profileRow, profile, loyaltyProgram: resolvedLoyaltyProgram, customerInsights };
+}
+
+function buildDefaultLoyaltyProgramForGeneration() {
+  return {
+    id: null,
+    type: "points",
+    reward_label: "Récompense offerte",
+    reward_threshold: 100,
+    points_per_euro: 1,
+    stamps_required: 10,
+  };
+}
+
+/** PostgREST remplit les colonnes absentes avec null sur un insert batch — pas le DEFAULT SQL. */
+function ensureSuggestionInsertRow(row: Record<string, unknown>) {
+  return {
+    ...row,
+    target_segment: row.target_segment ?? "all",
+    margin_risk: row.margin_risk ?? "medium",
+    status: row.status ?? "pending",
+  };
 }
 
 function suggestionsFromRewards(
@@ -144,6 +163,7 @@ function suggestionsFromRewards(
     recommended_threshold: reward.recommended_threshold,
     margin_risk: reward.margin_risk,
     explanation: reward.explanation,
+    target_segment: "all",
     status: "pending",
   }));
 
@@ -159,6 +179,7 @@ function suggestionsFromRewards(
     recommended_threshold: option.threshold,
     margin_risk: "medium",
     explanation: option.rationale,
+    target_segment: "all",
     status: "pending",
   }));
 
@@ -188,9 +209,10 @@ async function persistGenerationBatch<T>(params: {
   suggestionRows: Record<string, unknown>[];
   modelUsed: string;
 }) {
+  const rows = params.suggestionRows.map(ensureSuggestionInsertRow);
   const { data: insertedSuggestions, error: insertError } = await params.admin
     .from("ai_suggestions")
-    .insert(params.suggestionRows)
+    .insert(rows)
     .select();
 
   if (insertError) throw new Error(insertError.message);
@@ -275,9 +297,10 @@ async function persistFullPlanBatch(params: {
   modelUsed: string;
 }) {
   if (params.suggestionRows.length) {
+    const rows = params.suggestionRows.map(ensureSuggestionInsertRow);
     const { error: insertSuggestionsError } = await params.admin
       .from("ai_suggestions")
-      .insert(params.suggestionRows);
+      .insert(rows);
     if (insertSuggestionsError) throw new Error(insertSuggestionsError.message);
   }
 

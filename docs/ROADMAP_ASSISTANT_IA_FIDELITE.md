@@ -1,9 +1,9 @@
 # Roadmap — Assistant IA Fidélité (RegalClic Wallet)
 
-> **Objectif** : préparer l’intégration d’un **Assistant IA Fidélité** premium dans RegalClic Wallet **sans casser la V1** ni coder la fonctionnalité dans ce document.  
-> **Statut** : document de cadrage et découpage en phases — **aucune implémentation** ici.  
-> **Dernière analyse** : juin 2026 — projet `regalclic_wallet` (V1 livrée, prod Vercel + Supabase `pfutrevqneggudriiyxr`).  
-> **MVP** : validé par le porteur de projet (juin 2026).
+> **Objectif** : cadrage et découpage en phases de l’**Assistant IA Fidélité** dans RegalClic Wallet.  
+> **Statut** : **MVP implémenté** (phases 2–16 + fondations 13–15–17 preview, juin 2026) — voir §25 pour la validation prod.  
+> **Dernière mise à jour** : juin 2026 — projet `regalclic_wallet` (prod Vercel + Supabase `pfutrevqneggudriiyxr`).  
+> **MVP** : validé et livré en code ; tests manuels E2E restants.
 
 ---
 
@@ -17,6 +17,18 @@
 | **Billing V1** | **Flag plan manuel** | Colonne `businesses.plan` : `starter` \| `pro_ia` \| `business` — pas de Stripe au MVP ; **Stripe en V2** quand monétisation self-service |
 | **Essai Starter** | **1 génération gratuite** | Flag `businesses.ai_trial_used` ; après essai → upgrade Pro IA requis |
 | **Calendrier par défaut** | **30 jours** | Génération MVP : plan marketing sur 30 jours (plus 7/14 en option ultérieure) |
+
+### Avancement implémentation (juin 2026)
+
+| Phase | Intitulé | Statut |
+|-------|----------|--------|
+| 0 | Audit Wallet | Partiel |
+| 1 | Cadrage UX | Partiel (wireframes / disclaimers UI) |
+| 2–12 | Données → quotas | ✅ Livré |
+| 13–14 | Prompts, logs, coûts | ✅ Livré |
+| 15 | Tests | Partiel (auto ✅, E2E manuel) |
+| 16 | MVP | ✅ Livré |
+| 17 | V2/V3 | Backlog + preview insights |
 
 ---
 
@@ -201,7 +213,7 @@ Dashboard → Assistant IA Fidélité
 
 | Route | Page | Lien IA |
 |-------|------|---------|
-| `/dashboard` | `DashboardHomePage.jsx` | Entrée « Assistant IA » (futur) |
+| `/dashboard` | `DashboardHomePage.jsx` | Entrée via sidebar « Assistant IA » (`DashboardLayout`) |
 | `/dashboard/business` | `BusinessSettingsPage.jsx` | Logo, hero, branding — **réutiliser upload** |
 | `/dashboard/program` | `ProgramSettingsPage.jsx` | Seuils, `reward_label`, table `rewards` |
 | `/dashboard/offers` | `OffersPage.jsx` | **Cible principale** offres brouillon / actives |
@@ -493,8 +505,8 @@ Les helpers existants `uploadBusinessLogo` / `uploadBusinessHero` (`src/lib/supa
 
 **Checklist** :
 - [ ] Maquettes Figma ou wireframes 5 écrans
-- [ ] Copywriting disclaimers légaux (« à valider selon vos marges »)
-- [ ] Définir nom menu sidebar : « Assistant IA »
+- [ ] Copywriting disclaimers légaux **dans l’UI** (« à valider selon vos marges » — présent dans les sorties IA, pas encore en bandeau fixe)
+- [x] Définir nom menu sidebar : « Assistant IA » (`/dashboard/ai-assistant`)
 
 ---
 
@@ -514,11 +526,11 @@ create policy "ai_menu_uploads_select_member"
 ```
 
 **Checklist** :
-- [ ] Migration tables section 10.2 + `businesses.plan`, `businesses.ai_trial_used`
-- [ ] Index `business_id`, `batch_id`, `status`
-- [ ] FK cascade `business_id` → `on delete cascade`
-- [ ] Grants : authenticated SELECT/INSERT/UPDATE ; pas de DELETE client sur logs
-- [ ] Migration bucket **`business-private`** + policies storage
+- [x] Migration tables section 10.2 + `businesses.plan`, `businesses.ai_trial_used` (`20250629120000_ai_assistant_core.sql`)
+- [x] Index `business_id`, `batch_id`, `status`
+- [x] FK cascade `business_id` → `on delete cascade`
+- [x] Grants : authenticated SELECT/INSERT/UPDATE ; pas de DELETE client sur logs
+- [x] Migration bucket **`business-private`** + policies storage (`20250629120001_ai_storage_business_private.sql`)
 
 ---
 
@@ -545,10 +557,10 @@ create policy "ai_menu_uploads_select_member"
 **Edge Function** : `ai-menu-upload` (POST multipart ou signed upload URL)
 
 **Checklist** :
-- [ ] Composant `MenuUploadZone.jsx`
-- [ ] Page `AiAssistantUploadPage.jsx`
-- [ ] Enregistrement ligne `ai_menu_uploads`
-- [ ] Gestion erreur réseau / taille
+- [x] Composant `MenuUploadZone.jsx`
+- [x] Page `AiAssistantUploadPage.jsx`
+- [x] Enregistrement ligne `ai_menu_uploads`
+- [x] Gestion erreur réseau / taille
 
 ---
 
@@ -588,10 +600,10 @@ create policy "ai_menu_uploads_select_member"
 **Edge Function** : `ai-extract-menu`
 
 **Checklist** :
-- [ ] Statuts `extracting` → `extracted` | `failed`
-- [ ] UI édition manuelle post-extraction
-- [ ] Ne jamais afficher « marge garantie »
-- [ ] Timeout 60–120 s + message utilisateur
+- [x] Statuts `extracting` → `extracted` | `failed`
+- [x] UI édition manuelle post-extraction (`MenuExtractionEditor`, `AiAssistantMenuPage`)
+- [x] Ne jamais afficher « marge garantie » (sanitisation phase 13)
+- [x] Timeout 60–120 s + message utilisateur
 
 ---
 
@@ -606,10 +618,10 @@ create policy "ai_menu_uploads_select_member"
 **Stockage** : `ai_restaurant_profiles` upsert par `business_id`
 
 **Checklist** :
-- [ ] Formulaire multi-étapes ou une page
-- [ ] Valeurs par défaut depuis `loyalty_programs` (seuil actuel, type)
-- [ ] Sauvegarde auto / bouton enregistrer
-- [ ] Validation Zod côté client + serveur
+- [x] Formulaire une page (`AiAssistantProfilePage`, 8 questions)
+- [x] Valeurs par défaut depuis `loyalty_programs` (seuil actuel, type)
+- [x] Bouton enregistrer + Edge Function `ai-restaurant-profile`
+- [x] Validation côté client + serveur (`validateRestaurantProfilePayload`)
 
 ---
 
@@ -647,10 +659,10 @@ create policy "ai_menu_uploads_select_member"
 **Edge Function** : partie de `ai-generate-suggestions` ou endpoint dédié
 
 **Checklist** :
-- [ ] Prompt système section 13
-- [ ] Validation schéma Zod
-- [ ] Insert `ai_suggestions` type `reward` | `threshold`
-- [ ] Retry 1× si JSON invalide
+- [x] Prompts v1 (`ai-prompts/v1/`)
+- [x] Validation schéma (`ai-schemas/`, parsing + retry)
+- [x] Insert `ai_suggestions` type `reward` | `threshold`
+- [x] Retry 1× si JSON invalide (`ai-openai-json.ts`)
 
 ---
 
@@ -665,9 +677,9 @@ create policy "ai_menu_uploads_select_member"
 **Lien** : préparer champs compatibles `wallet_campaigns` (`title`, `message`, `offer_label`, `starts_at`, `ends_at`)
 
 **Checklist** :
-- [ ] Suggestions type `offer` en base
-- [ ] Badge UI risque marge
-- [ ] Pas de promesse CA
+- [x] Suggestions type `offer` en base
+- [x] Badge UI risque marge (`MarginBadge` dans `SuggestionCard`)
+- [x] Pas de promesse CA (sanitisation prompts + sorties)
 
 ---
 
@@ -685,9 +697,9 @@ create policy "ai_menu_uploads_select_member"
 **Exemples types** : offre, récompense, nouveauté, rappel, double points
 
 **Checklist** :
-- [ ] Suggestions type `notification`
-- [ ] Lien vers champs campagne `message` + `offer_label`
-- [ ] Ton aligné `tone_of_voice` profil
+- [x] Suggestions type `notification`
+- [x] Lien vers champs campagne `message` + `offer_label` (application → brouillon)
+- [x] Ton aligné `tone_of_voice` profil (prompt génération)
 
 ---
 
@@ -707,9 +719,9 @@ create policy "ai_menu_uploads_select_member"
 **Règle V1** : **aucun envoi automatique** — boutons « Créer brouillon offre » / « Programmer plus tard » (= statut `ready`)
 
 **Checklist** :
-- [ ] Insert `ai_marketing_calendar_items`
-- [ ] Filtre par semaine
-- [ ] Export copier calendrier (optionnel MVP+)
+- [x] Insert `ai_marketing_calendar_items`
+- [x] Filtre par semaine (`AiAssistantCalendarPage`)
+- [x] Export copier calendrier (« Copier la semaine »)
 
 ---
 
@@ -734,9 +746,9 @@ create policy "ai_menu_uploads_select_member"
 | `calendar_tip` | Créer brouillon + lier `ai_marketing_calendar_items` |
 
 **Checklist** :
-- [ ] Composant `SuggestionCard.jsx`
-- [ ] Modale édition avant application
-- [ ] Toast succès + lien vers offre brouillon
+- [x] Composant `SuggestionCard.jsx`
+- [x] Modale édition avant application (`SuggestionEditModal`)
+- [x] Toast succès + lien vers offre brouillon
 
 ---
 
@@ -754,7 +766,7 @@ Suggestion IA (offer)
     → [Option] notify_on_activate si validé
 ```
 
-**Fichiers existants à étendre** (Phase implémentation) :
+**Fichiers existants étendus** :
 - `src/lib/campaigns.js` — helper `createCampaignFromSuggestion(suggestion)`
 - `src/pages/dashboard/OffersPage.jsx` — badge « Créée par IA »
 - `supabase/functions/_shared/wallet-campaign-core.ts` — inchangé si brouillon seulement
@@ -764,9 +776,9 @@ Suggestion IA (offer)
 - Upsert `rewards` (pattern `ProgramSettingsPage.jsx`)
 
 **Checklist** :
-- [ ] Ne pas auto-activer campagne
-- [ ] Tracer `ai_suggestions.applied_entity_id`
-- [ ] Sync Wallet uniquement après activation manuelle
+- [x] Ne pas auto-activer campagne
+- [x] Tracer `ai_suggestions.applied_entity_id` (`ai-apply-suggestion.js`)
+- [x] Sync Wallet uniquement après activation manuelle (flux `OffersPage` inchangé)
 
 ---
 
@@ -792,11 +804,11 @@ ai_trial_used boolean not null default false
 **V2 billing** : intégration **Stripe** (abonnement Pro IA) — le flag `plan` sera mis à jour via webhook ; pas de Stripe au MVP.
 
 **Checklist** :
-- [ ] Vérification quota dans EF **avant** appel OpenAI
-- [ ] Message UI « Essai utilisé — passez à Pro IA »
-- [ ] Message UI quota Pro atteint
-- [ ] Feature flag `AI_ASSISTANT_ENABLED` global
-- [ ] Script admin pour passer un commerce en `pro_ia` (support)
+- [x] Vérification quota dans EF **avant** appel OpenAI (`ai-quota-core.ts`)
+- [x] Message UI « Essai utilisé — passez à Pro IA » (`AiQuotaBanner`)
+- [x] Message UI quota Pro atteint
+- [x] Feature flag `AI_ASSISTANT_ENABLED` global (code EF)
+- [x] Script admin pour passer un commerce en `pro_ia` (`scripts/set-business-ai-plan.sql` + admin merchants)
 
 ---
 
@@ -804,11 +816,13 @@ ai_trial_used boolean not null default false
 
 **Objectif** : prompts versionnés, sorties fiables.
 
-**Fichiers à créer** (implémentation future) :
+**Fichiers livrés** :
 - `supabase/functions/_shared/ai-prompts/v1/system.ts`
 - `supabase/functions/_shared/ai-prompts/v1/extract-menu.ts`
 - `supabase/functions/_shared/ai-prompts/v1/generate-plan.ts`
-- `supabase/functions/_shared/ai-schemas/` — Zod
+- `supabase/functions/_shared/ai-schemas/` — validation + tests Deno
+- `supabase/functions/_shared/ai-openai-json.ts` — retry JSON
+- `supabase/functions/_shared/ai-sanitize.ts` — disclaimers sorties IA
 
 **Prompt système — règles** :
 1. Ne jamais garantir un résultat business
@@ -837,8 +851,8 @@ ai_trial_used boolean not null default false
 - Message : « La génération a échoué, réessayez ou contactez le support »
 
 **Checklist** :
-- [ ] Dashboard admin interne (futur) agrégat coûts
-- [ ] Alerte si coût mensuel > seuil
+- [x] Dashboard admin agrégat coûts (`AdminAiUsagePanel`)
+- [x] Alerte si coût mensuel > seuil (`ai-usage-summary.ts`)
 
 ---
 
@@ -857,9 +871,13 @@ ai_trial_used boolean not null default false
 | IA | JSON invalide, timeout API, clé manquante |
 | Wallet | Brouillon IA → activation → sync (non régression) |
 
-**Fichier** : étendre `docs/V1_TEST_PLAN.md` section Assistant IA (phase implémentation)
+**Fichier** : [`docs/V1_TEST_PLAN.md`](./V1_TEST_PLAN.md) §11 (Assistant IA Fidélité)
 
----
+**Checklist** :
+- [x] Section 11 ajoutée au plan de test (`V1_TEST_PLAN.md`)
+- [x] Tests automatisés Vitest (`npm run test`) — quotas, onboarding, apply suggestion
+- [x] Tests Deno schémas IA (`supabase/functions/_shared/ai-schemas/*.test.ts`)
+- [ ] Validation manuelle E2E prod (§11.1–11.8) — à exécuter avant annonce Pro IA
 
 ### PHASE 16 — MVP recommandé
 
@@ -878,7 +896,19 @@ ai_trial_used boolean not null default false
 7. Validation manuelle obligatoire
 8. Quota Pro IA basique (5 générations/mois)
 
-**Hors MVP** : segmentation, auto-send, chat, analytics performance
+**Hors MVP** : segmentation avancée, auto-send, chat, analytics performance (→ backlog V2/V3)
+
+**Statut** : **livré** (juin 2026) — hub `/dashboard/ai-assistant`, génération `full_plan` 1 clic, historique batches, onboarding guidé (`ai-onboarding.js`).
+
+**Checklist** :
+- [x] Upload menu PDF/image (storage privé)
+- [x] Extraction + édition manuelle fallback
+- [x] Questionnaire 8 questions
+- [x] Génération 1 clic (récompenses, offres, notifs, calendrier 30 j)
+- [x] Liste suggestions + filtres + pages par type
+- [x] « Utiliser » → brouillon campagne ou préfill programme
+- [x] Validation manuelle obligatoire
+- [x] Quota Pro IA (5 générations/mois) + essai Starter
 
 ---
 
@@ -929,47 +959,50 @@ Voir [`docs/BACKLOG_ASSISTANT_IA_V2_V3.md`](./BACKLOG_ASSISTANT_IA_V2_V3.md).
 
 ## 13. Formats JSON attendus (schémas)
 
-Voir sections Phase 4, 6, 7, 8, 9 + fichier futur `ai-schemas/plan-output.v1.json`
+Voir sections Phase 4, 6, 7, 8, 9 + schémas livrés `supabase/functions/_shared/ai-schemas/`
 
-**Validation** : Zod côté Edge Function avant insert DB
+**Validation** : parsing TypeScript côté Edge Function avant insert DB (+ tests Deno)
 
 ---
 
-## 14. Fichiers probablement concernés (implémentation)
+## 14. Fichiers livrés (référence)
 
-### Nouveaux — Frontend
+### Frontend — livré
 ```
-src/pages/dashboard/ai-assistant/
+src/pages/dashboard/
   AiAssistantHomePage.jsx
   AiAssistantUploadPage.jsx
+  AiAssistantMenuPage.jsx
   AiAssistantProfilePage.jsx
   AiAssistantSuggestionsPage.jsx
+  AiAssistantRewardsPage.jsx
+  AiAssistantOffersPage.jsx
+  AiAssistantNotificationsPage.jsx
   AiAssistantCalendarPage.jsx
   AiAssistantHistoryPage.jsx
 src/components/ai-assistant/
-  MenuUploadZone.jsx
-  MenuExtractionEditor.jsx
-  RestaurantProfileForm.jsx
-  SuggestionCard.jsx
-  SuggestionFilters.jsx
-  MarketingCalendarView.jsx
-  RewardUnlockedBanner.jsx  (si réutilisation)
+  AiAssistantNav.jsx, AiQuotaBanner.jsx, AiActivitySummary.jsx
+  MenuUploadZone.jsx, MenuExtractionEditor.jsx
+  SuggestionCard.jsx, SuggestionEditModal.jsx, CalendarItemCard.jsx
+  AiCustomerInsightsPanel.jsx, AiReadySuggestionsBanner.jsx, AiRoadmapPanel.jsx
+  AiOriginBadge.jsx
 src/lib/
-  ai-assistant.js
-  ai-menu.js
+  ai-assistant.js, ai-apply-suggestion.js, ai-onboarding.js
+src/components/admin/AdminAiUsagePanel.jsx
 ```
 
-### Nouveaux — Backend
+### Backend — livré
 ```
-supabase/migrations/YYYYMMDDHHMMSS_ai_assistant_core.sql
-supabase/migrations/YYYYMMDDHHMMSS_ai_storage_business_private.sql
-supabase/functions/ai-menu-upload/index.ts
-supabase/functions/ai-extract-menu/index.ts
-supabase/functions/ai-generate-suggestions/index.ts
-supabase/functions/ai-suggestion-action/index.ts
-supabase/functions/_shared/ai-prompts/
-supabase/functions/_shared/ai-schemas/
-supabase/functions/_shared/ai-quota-core.ts
+supabase/migrations/20250629120000_ai_assistant_core.sql
+supabase/migrations/20250629120001_ai_storage_business_private.sql
+supabase/migrations/20250629120002_ai_batch_calendar_type.sql
+supabase/migrations/20250701120000_ai_customer_insights.sql
+supabase/functions/ai-menu-upload/, ai-extract-menu/, ai-generate-suggestions/
+supabase/functions/ai-restaurant-profile/, ai-suggestion-action/
+supabase/functions/_shared/ai-prompts/, ai-schemas/, ai-quota-core.ts
+supabase/functions/_shared/ai-usage-log.ts, ai-usage-summary.ts
+supabase/functions/_shared/ai-customer-insights.ts, ai-generate-suggestions-core.ts
+scripts/set-business-ai-plan.sql
 ```
 
 ### Existants — extension légère uniquement
@@ -997,10 +1030,14 @@ RPC add_points / add_stamp / redeem_reward
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/dashboard/ai-assistant` | `AiAssistantHomePage` | Hub, état onboarding, CTA générer |
+| `/dashboard/ai-assistant` | `AiAssistantHomePage` | Hub, onboarding, génération 1 clic |
 | `/dashboard/ai-assistant/upload` | `AiAssistantUploadPage` | Upload + liste menus |
+| `/dashboard/ai-assistant/menu/:uploadId` | `AiAssistantMenuPage` | Extraction + édition menu |
 | `/dashboard/ai-assistant/profile` | `AiAssistantProfilePage` | Questionnaire |
-| `/dashboard/ai-assistant/suggestions` | `AiAssistantSuggestionsPage` | Résultats batch |
+| `/dashboard/ai-assistant/suggestions` | `AiAssistantSuggestionsPage` | Hub validation batch |
+| `/dashboard/ai-assistant/rewards` | `AiAssistantRewardsPage` | Génération récompenses |
+| `/dashboard/ai-assistant/offers` | `AiAssistantOffersPage` | Génération offres |
+| `/dashboard/ai-assistant/notifications` | `AiAssistantNotificationsPage` | Génération notifications |
 | `/dashboard/ai-assistant/calendar` | `AiAssistantCalendarPage` | Calendrier proposé |
 | `/dashboard/ai-assistant/history` | `AiAssistantHistoryPage` | Batches passés |
 
@@ -1069,17 +1106,21 @@ RPC add_points / add_stamp / redeem_reward
 
 ## 20. Logs / coûts IA
 
-- Chaque appel provider → ligne `ai_usage_logs`
-- Estimation coût : tokens × tarif modèle (config interne)
-- Dashboard restaurateur : « Générations restantes : 3/5 »
-- Admin RegalClic (futur) : coût agrégé par mois
+- Chaque appel provider → ligne `ai_usage_logs` (`ai-usage-log.ts`)
+- Estimation coût : tokens × tarif modèle (`ai-usage-summary.ts`)
+- Dashboard restaurateur : « Générations restantes » (`AiQuotaBanner`, `AiActivitySummary`)
+- Admin RegalClic : coût agrégé par mois + alerte seuil (`AdminAiUsagePanel`)
 
 ---
 
 ## 21. Stratégie de tests (synthèse)
 
-Voir Phase 15 + extension `V1_TEST_PLAN.md` :
+Voir Phase 15 + [`V1_TEST_PLAN.md`](./V1_TEST_PLAN.md) §11 :
 
+**Automatisés** (livré) :
+- [x] Parsing schémas IA + quotas + apply suggestion (Vitest / Deno)
+
+**Manuels prod** (à valider) :
 - [ ] Upload invalide rejeté
 - [ ] Extraction → édition → génération
 - [ ] Suggestion offre → brouillon campagne visible OffersPage
@@ -1091,22 +1132,23 @@ Voir Phase 15 + extension `V1_TEST_PLAN.md` :
 
 ## 22. Ordre d’implémentation recommandé
 
-| # | Étape | Phase doc |
-|---|--------|-----------|
-| 1 | Audit & décisions (provider, storage) | 0 |
-| 2 | Cadrage produit + wireframes | 1 |
-| 3 | Migration tables + RLS + bucket | 2 |
-| 4 | Upload menu UI + EF | 3 |
-| 5 | Questionnaire profil | 5 |
-| 6 | Extraction menu | 4 |
-| 7 | Prompts + génération batch | 6, 7, 8, 13 |
-| 8 | UI suggestions + validation | 10 |
-| 9 | Pont brouillon offre / programme | 11 |
-| 10 | Calendrier UI | 9 |
-| 11 | Quotas premium | 12 |
-| 12 | Logs & coûts | 14 |
-| 13 | Tests E2E | 15 |
-| 14 | Polish UI + copy | 16 |
+| # | Étape | Phase doc | Statut |
+|---|--------|-----------|--------|
+| 1 | Audit & décisions (provider, storage) | 0 | Partiel (audits manuels ouverts) |
+| 2 | Cadrage produit + wireframes | 1 | Partiel (wireframes / disclaimers UI) |
+| 3 | Migration tables + RLS + bucket | 2 | ✅ |
+| 4 | Upload menu UI + EF | 3 | ✅ |
+| 5 | Questionnaire profil | 5 | ✅ |
+| 6 | Extraction menu | 4 | ✅ |
+| 7 | Prompts + génération batch | 6, 7, 8, 13 | ✅ |
+| 8 | UI suggestions + validation | 10 | ✅ |
+| 9 | Pont brouillon offre / programme | 11 | ✅ |
+| 10 | Calendrier UI | 9 | ✅ |
+| 11 | Quotas premium | 12 | ✅ |
+| 12 | Logs & coûts | 14 | ✅ |
+| 13 | Tests E2E | 15 | Partiel (auto ✅, manuel prod) |
+| 14 | Polish UI + copy | 16 | ✅ |
+| 15 | Preview V2 insights | 17 | ✅ (backlog V2/V3 documenté) |
 
 ---
 
@@ -1124,30 +1166,31 @@ Toutes les questions ouvertes ont été tranchées (juin 2026). Voir encart **«
 
 ---
 
-## 24. Première phase à implémenter ensuite
+## 24. Prochaines étapes
 
-**→ PHASE 2 — Modèle de données** (décisions produit validées — prêt à implémenter)
+**MVP code** : phases 2–16 livrées ; phase 17 = backlog V2/V3 + preview insights.
 
-Rationale :
-- Fondation sans toucher au Wallet
-- Crée `business-private`, tables `ai_*`, colonnes `plan` / `ai_trial_used`
-- Débloque upload (Phase 3) et questionnaire (Phase 5)
+**Avant annonce Pro IA en prod** (§25) :
+1. Exécuter les tests manuels [`V1_TEST_PLAN.md`](./V1_TEST_PLAN.md) §11
+2. Ajouter disclaimers légaux **visibles** sur les pages assistant (bandeau fixe)
+3. Documenter l’assistant dans le README restaurateur
+4. Valider kill switch `AI_ASSISTANT_ENABLED` en staging/prod
 
-**Alternative** : Phase 1 wireframes en parallèle si besoin UX avant migration.
+**Développement suivant** : prioriser le backlog [`BACKLOG_ASSISTANT_IA_V2_V3.md`](./BACKLOG_ASSISTANT_IA_V2_V3.md) (Stripe, emails, scoring…).
 
 ---
 
 ## 25. Checklist globale « prêt pour prod Pro IA »
 
-- [ ] Migration appliquée prod
-- [ ] Edge Functions déployées + secrets IA
-- [ ] Quotas actifs
-- [ ] Disclaimers légaux page assistant
-- [ ] Tests E2E brouillon → activation offre → sync Wallet
-- [ ] Documentation restaurateur (aide contextuelle)
-- [ ] Monitoring coûts IA
-- [ ] Kill switch `AI_ASSISTANT_ENABLED` testé
+- [x] Migration appliquée prod (`ai_*`, `business-private`, insights V2)
+- [x] Edge Functions déployées + secrets IA (`ai-menu-upload`, `ai-extract-menu`, `ai-generate-suggestions`, …)
+- [x] Quotas actifs (`ai-quota-core`, `AiQuotaBanner`)
+- [ ] Disclaimers légaux **page assistant** (bandeau UI — présents dans sorties IA seulement)
+- [ ] Tests E2E brouillon → activation offre → sync Wallet (§11.6)
+- [ ] Documentation restaurateur (aide contextuelle / README)
+- [x] Monitoring coûts IA (`AdminAiUsagePanel`, `ai_usage_logs`)
+- [ ] Kill switch `AI_ASSISTANT_ENABLED` testé en prod
 
 ---
 
-*Document vivant — mettre à jour à chaque phase implémentée. Pour l’implémentation, demander : « Implémente la phase N » en référence à ce fichier.*
+*Document vivant — dernière sync code : juin 2026 (commits `9dc47bd`, `90c546d`). Pour la suite : backlog V2/V3 ou « valide §25 prod ».*

@@ -1,23 +1,24 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Store, Sparkles, QrCode, ScanLine, Users, Megaphone, LogOut, Bot } from 'lucide-react';
+import { LogOut, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
+import { useMyBusiness } from '@/hooks/useMyBusiness';
+import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
+import { useDashboardNavMode } from '@/hooks/useDashboardNavMode';
+import { getVisibleNavItems, isNavItemActive } from '@/lib/dashboard-nav';
 import { Button } from '@/components/ui/button';
-
-const NAV = [
-  { to: '/dashboard', label: 'Accueil', icon: LayoutDashboard, end: true },
-  { to: '/dashboard/business', label: 'Commerce', icon: Store },
-  { to: '/dashboard/program', label: 'Programme', icon: Sparkles },
-  { to: '/dashboard/offers', label: 'Offres promo', icon: Megaphone },
-  { to: '/dashboard/ai-assistant', label: 'Assistant IA', icon: Bot, matchPrefix: '/dashboard/ai-assistant' },
-  { to: '/dashboard/qr', label: 'QR inscription', icon: QrCode },
-  { to: '/dashboard/scan', label: 'Scanner', icon: ScanLine },
-  { to: '/dashboard/customers', label: 'Clients', icon: Users },
-];
 
 export default function DashboardLayout({ children, title, description }) {
   const location = useLocation();
   const { logout } = useAuth();
+  const { business, loyaltyProgram } = useMyBusiness();
+  const { progress } = useOnboardingProgress(business, loyaltyProgram);
+  const { isAdvancedMode, toggleNavMode } = useDashboardNavMode(progress?.onboardingComplete);
+
+  const navItems = getVisibleNavItems({
+    isAdvancedMode,
+    statuses: progress?.statuses ?? {},
+  });
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -36,29 +37,38 @@ export default function DashboardLayout({ children, title, description }) {
       </header>
 
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[220px_1fr]">
-        <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
-          {NAV.map(({ to, label, icon: Icon, end, matchPrefix }) => {
-            const active = matchPrefix
-              ? location.pathname.startsWith(matchPrefix)
-              : end
-                ? location.pathname === to
-                : location.pathname.startsWith(to);
-            return (
-              <Link
-                key={to}
-                to={to}
-                className={cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors',
-                  active
-                    ? 'bg-rc-navy text-white shadow'
-                    : 'bg-white text-slate-700 hover:bg-slate-100',
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </Link>
-            );
-          })}
+        <nav className="flex flex-col gap-2">
+          <div className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
+            {navItems.map(({ to, label, icon: Icon, end, matchPrefixes }) => {
+              const active = isNavItemActive({ to, end, matchPrefixes }, location.pathname);
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors',
+                    active
+                      ? 'bg-rc-navy text-white shadow'
+                      : 'bg-white text-slate-700 hover:bg-slate-100',
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={toggleNavMode}
+            className="mt-2 flex items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-left text-xs text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            <Settings2 className="h-3.5 w-3.5 shrink-0 text-rc-teal" />
+            {isAdvancedMode
+              ? 'Revenir au mode guidé'
+              : 'Afficher les options avancées'}
+          </button>
         </nav>
 
         <main>{children}</main>

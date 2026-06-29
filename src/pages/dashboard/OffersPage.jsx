@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import AiOriginBadge from '@/components/ai-assistant/AiOriginBadge';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
+import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
+import { useDashboardNavMode } from '@/hooks/useDashboardNavMode';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -185,7 +187,9 @@ function CampaignStats({ campaignId }) {
 }
 
 export default function OffersPage() {
-  const { business, isLoading } = useMyBusiness();
+  const { business, isLoading, loyaltyProgram } = useMyBusiness();
+  const { progress } = useOnboardingProgress(business, loyaltyProgram);
+  const { isAdvancedMode } = useDashboardNavMode(progress?.onboardingComplete);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState('list');
@@ -277,7 +281,7 @@ export default function OffersPage() {
     mutationFn: activateCampaign,
     onSuccess: (data) => {
       invalidate();
-      toast.success(data.message || 'Campagne activée');
+      toast.success(data.message || 'Votre offre est active sur les cartes Wallet de vos clients.');
     },
     onError: (error) => toast.error(error?.message || 'Activation impossible'),
   });
@@ -354,31 +358,48 @@ export default function OffersPage() {
 
   return (
     <DashboardLayout
-      title="Offres promo"
-      description="Publiez une offre visible sur toutes les cartes Wallet actives"
+      title={isAdvancedMode ? 'Offres promo' : 'Mes offres'}
+      description={
+        isAdvancedMode
+          ? 'Publiez une offre visible sur toutes les cartes Wallet actives'
+          : 'Activez les offres choisies depuis Mes idées'
+      }
     >
       <div className="space-y-6">
-        <Card className="border-amber-200 bg-amber-50/40">
-          <CardContent className="flex gap-3 pt-6 text-sm text-amber-900">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <div>
-              <p className="font-medium">Notifications Wallet promo</p>
-              <p className="mt-1 text-xs text-amber-800/90">{WALLET_NOTIFY_DISCLAIMER}</p>
-              {notifyQuota ? (
-                <p className="mt-2 text-xs font-medium text-amber-900">
-                  Quota aujourd&apos;hui :
-                  {' '}
-                  {notifyQuota.used}
-                  /
-                  {notifyQuota.quota}
-                  {' '}
-                  diffusion(s) notifiante(s)
-                  {notifyQuota.blocked ? ' — quota atteint' : ''}
-                </p>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
+        {!isAdvancedMode && campaigns.length === 0 && mode === 'list' ? (
+          <Card className="border-rc-teal/20 bg-rc-teal/5">
+            <CardContent className="space-y-3 pt-6 text-sm text-slate-700">
+              <p>
+                Choisissez d&apos;abord une offre dans Mes idées — elle apparaîtra ici en brouillon à activer.
+              </p>
+              <Button asChild size="sm">
+                <Link to="/dashboard/ideas?tab=offers">Voir mes idées</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {isAdvancedMode ? (
+          <Card className="border-amber-200 bg-amber-50/40">
+            <CardContent className="flex gap-3 pt-6 text-sm text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-medium">Notifications Wallet promo</p>
+                <p className="mt-1 text-xs text-amber-800/90">{WALLET_NOTIFY_DISCLAIMER}</p>
+                {notifyQuota ? (
+                  <p className="mt-2 text-xs font-medium text-amber-900">
+                    Diffusions notifiantes aujourd&apos;hui :
+                    {' '}
+                    {notifyQuota.used}
+                    /
+                    {notifyQuota.quota}
+                    {notifyQuota.blocked ? ' — limite atteinte' : ''}
+                  </p>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {activeCampaign && !(mode === 'edit' && editingId === activeCampaign.id) ? (
           <Card className="border-emerald-200 bg-emerald-50/50">
@@ -412,20 +433,34 @@ export default function OffersPage() {
                   <Pencil className="h-4 w-4" />
                   Modifier
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={actionLoading || notifyQuota?.blocked}
-                  onClick={() => notifyAllMutation.mutate(activeCampaign.id)}
-                  title={notifyQuota?.blocked ? 'Quota journalier atteint' : undefined}
-                >
-                  {notifyAllMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Bell className="h-4 w-4" />
-                  )}
-                  Notifier toutes les cartes
-                </Button>
+                {isAdvancedMode ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={actionLoading || notifyQuota?.blocked}
+                      onClick={() => notifyAllMutation.mutate(activeCampaign.id)}
+                      title={notifyQuota?.blocked ? 'Limite journalière atteinte' : undefined}
+                    >
+                      {notifyAllMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Bell className="h-4 w-4" />
+                      )}
+                      Notifier toutes les cartes
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      disabled={actionLoading}
+                      onClick={() => confirmDelete(activeCampaign)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Supprimer
+                    </Button>
+                  </>
+                ) : null}
                 <Button
                   variant="outline"
                   size="sm"
@@ -437,49 +472,46 @@ export default function OffersPage() {
                 ) : (
                   <Square className="h-4 w-4" />
                 )}
-                Terminer la campagne
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700"
-                  disabled={actionLoading}
-                  onClick={() => confirmDelete(activeCampaign)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Supprimer
+                Terminer l&apos;offre
                 </Button>
               </div>
-              <div className="flex flex-wrap items-end gap-2 border-t border-emerald-200/60 pt-3">
-                <div className="min-w-[200px] flex-1 space-y-1">
-                  <Label htmlFor="test-membership-id" className="text-xs text-emerald-900">
-                    Test sur 1 carte (ID membership)
-                  </Label>
-                  <Input
-                    id="test-membership-id"
-                    value={testMembershipId}
-                    onChange={(e) => setTestMembershipId(e.target.value)}
-                    placeholder="UUID fiche client"
-                    className="h-9 bg-white text-sm"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={actionLoading || !testMembershipId.trim()}
-                  onClick={() => notifyTestMutation.mutate({
-                    campaignId: activeCampaign.id,
-                    membershipId: testMembershipId.trim(),
-                  })}
-                >
-                  {notifyTestMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Bell className="h-4 w-4" />
-                  )}
-                  Tester notification
-                </Button>
-              </div>
+              {isAdvancedMode ? (
+                <details className="border-t border-emerald-200/60 pt-3">
+                  <summary className="cursor-pointer text-xs font-medium text-emerald-900">
+                    Mode avancé — test sur une carte
+                  </summary>
+                  <div className="mt-3 flex flex-wrap items-end gap-2">
+                    <div className="min-w-[200px] flex-1 space-y-1">
+                      <Label htmlFor="test-membership-id" className="text-xs text-emerald-900">
+                        Identifiant fiche client
+                      </Label>
+                      <Input
+                        id="test-membership-id"
+                        value={testMembershipId}
+                        onChange={(e) => setTestMembershipId(e.target.value)}
+                        placeholder="UUID fiche client"
+                        className="h-9 bg-white text-sm"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={actionLoading || !testMembershipId.trim()}
+                      onClick={() => notifyTestMutation.mutate({
+                        campaignId: activeCampaign.id,
+                        membershipId: testMembershipId.trim(),
+                      })}
+                    >
+                      {notifyTestMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Bell className="h-4 w-4" />
+                      )}
+                      Tester notification
+                    </Button>
+                  </div>
+                </details>
+              ) : null}
             </CardContent>
           </Card>
         ) : null}
@@ -503,14 +535,14 @@ export default function OffersPage() {
                 <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
                   <AiOriginBadge label={getCampaignAiOriginLabel(editingAiOrigin)} />
                   <span>
-                    Brouillon issu de l&apos;assistant IA — vérifiez le message avant activation.
+                    Brouillon issu de vos idées — vérifiez le message avant activation.
                   </span>
                   {editingAiOrigin.suggestionId ? (
                     <Link
                       className="text-xs font-medium underline"
-                      to="/dashboard/ai-assistant/suggestions"
+                      to="/dashboard/ideas?tab=offers"
                     >
-                      Retour validation
+                      Retour aux idées
                     </Link>
                   ) : null}
                 </div>
@@ -533,7 +565,7 @@ export default function OffersPage() {
               />
             </CardContent>
           </Card>
-        ) : (
+        ) : isAdvancedMode ? (
           <div className="flex justify-end">
             <Button
               onClick={() => {
@@ -546,13 +578,17 @@ export default function OffersPage() {
               Nouvelle offre
             </Button>
           </div>
-        )}
+        ) : null}
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Historique des campagnes</CardTitle>
+            <CardTitle className="text-base">
+              {isAdvancedMode ? 'Historique des campagnes' : 'Vos offres'}
+            </CardTitle>
             <CardDescription>
-              Une seule campagne active à la fois. L’activation met à jour toutes les cartes installées.
+              {isAdvancedMode
+                ? 'Une seule offre active à la fois. L’activation met à jour toutes les cartes installées.'
+                : 'Activez un brouillon pour le rendre visible sur les cartes Wallet.'}
             </CardDescription>
           </CardHeader>
           <CardContent>

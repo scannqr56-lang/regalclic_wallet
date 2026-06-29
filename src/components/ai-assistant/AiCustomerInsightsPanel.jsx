@@ -27,18 +27,19 @@ export default function AiCustomerInsightsPanel({ businessId }) {
   const segments = insights?.segments;
   const thresholds = insights?.thresholds;
 
+  if (!insightsQuery.isLoading && segments?.all === 0) {
+    return null;
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <BarChart3 className="h-5 w-5 text-rc-teal" />
-          Insights clients
-          <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-800">
-            V2 preview
-          </span>
+          Vos clients réguliers
         </CardTitle>
         <CardDescription>
-          Segmentation basée sur vos scans réels — enrichit les suggestions IA (sans données personnelles).
+          Aperçu de votre clientèle — pour affiner vos idées d’offres (données anonymes).
         </CardDescription>
       </CardHeader>
       <CardContent>

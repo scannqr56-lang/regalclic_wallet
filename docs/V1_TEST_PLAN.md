@@ -338,3 +338,75 @@ npm run test:all      # Les deux
 | Page blanche menu | Vérifier console ; imports React Router |
 | Coûts admin à 0 | Vérifier déploiement Edge Functions phase 14 |
 | JSON invalide persistant | Logs `ai_suggestion_batches.error_message` ; retry auto = 2 appels max |
+
+---
+
+## 12. Parcours guidé UX (simplification restaurateur)
+
+Checklist E2E du parcours cible après refonte UX (phases 1–5). Routes principales :
+
+- `/dashboard` — accueil guidé
+- `/dashboard/business` — commerce (accessible via checklist ou mode avancé)
+- `/dashboard/restaurant` — 3 questions essentielles
+- `/dashboard/menu` — upload carte
+- `/dashboard/menu/:id` — validation menu
+- `/dashboard/ideas` — obtenir et choisir les idées (onglets Offres / Récompenses / Messages)
+- `/dashboard/program` — programme fidélité
+- `/dashboard/offers` — activation brouillons (mode simple ou avancé)
+- `/dashboard/qr` — QR inscription
+
+### 12.1 Navigation
+
+| # | Test | Attendu |
+|---|------|---------|
+| 12.1.1 | Nouveau compte — sidebar | **5 entrées** : Accueil, Mon menu, Mes idées, Mon programme, QR |
+| 12.1.2 | Bas de sidebar | Lien « Afficher les options avancées » visible |
+| 12.1.3 | Activer mode avancé | Offres, Commerce, Scanner visibles ; Clients masqué si 0 client |
+| 12.1.4 | Après 1er client inscrit | Entrée **Clients** visible en mode avancé |
+| 12.1.5 | Onboarding complet sans toggle | Mode avancé par défaut (préférence mémorisée) |
+| 12.1.6 | « Revenir au mode guidé » | Retour aux 5 entrées |
+
+### 12.2 Parcours complet (< 20 min, sans aide)
+
+| # | Étape | Attendu |
+|---|-------|---------|
+| 12.2.1 | Dashboard — prochaine action | CTA unique vers l’étape en cours (< 10 s pour identifier) |
+| 12.2.2 | Configurer commerce | Nom + slug OK |
+| 12.2.3 | `/dashboard/menu` — upload PDF | Extraction réussie |
+| 12.2.4 | Valider menu → Continuer | Redirection profil ou idées selon état |
+| 12.2.5 | `/dashboard/restaurant` — 3 questions | Enregistrer et continuer → `/dashboard/ideas` |
+| 12.2.6 | Obtenir mes idées | **Sans** avoir configuré le programme avant |
+| 12.2.7 | Onglet Offres — choisir une idée | Brouillon campagne créé |
+| 12.2.8 | `/dashboard/offers` (mode simple) | Pas de bouton « Nouvelle offre » ; test UUID masqué |
+| 12.2.9 | Activer le brouillon | Toast « Votre offre est active… » |
+| 12.2.10 | Onglet Récompenses — appliquer | Programme mis à jour (libellé + seuil) |
+| 12.2.11 | `/dashboard/program` | Seuil cohérent avec l’idée choisie |
+| 12.2.12 | `/dashboard/qr` | QR téléchargeable |
+
+### 12.3 Critères qualitatifs (§12 plan UX)
+
+| # | Question test restaurateur | Réponse attendue |
+|---|--------------------------|------------------|
+| 12.3.1 | « Est-ce que c’est l’ordinateur qui décide ? » | Non — rien n’est publié sans validation |
+| 12.3.2 | « Que dois-je faire maintenant ? » | Réponse immédiate via encart dashboard |
+| 12.3.3 | Parcourir l’UI | Aucun terme hub / batch / quota / prompt visible |
+
+### 12.4 Redirects legacy
+
+| # | URL | Attendu |
+|---|-----|---------|
+| 12.4.1 | `/dashboard/ai-assistant` | → `/dashboard/ideas` |
+| 12.4.2 | `/dashboard/ai-assistant/upload` | → `/dashboard/menu` |
+| 12.4.3 | `/dashboard/ai-assistant/suggestions` | → `/dashboard/ideas?tab=offers` |
+| 12.4.4 | `/dashboard/ai-assistant/profile` | → `/dashboard/restaurant` |
+
+### 12.5 Métriques terrain (à remplir post-test)
+
+| Métrique | Cible | Résultat test |
+|----------|-------|---------------|
+| Temps menu → 1ère offre activée | < 20 min | |
+| Clics menu → 1ère offre activée | < 8 | |
+| Abandon après upload menu | < 30 % | |
+| Restaurateurs complétant sans question | ≥ 2/3 | |
+
+Voir aussi `docs/UX_RESTAURATEUR_FEEDBACK.md` pour la grille d’entretien terrain.

@@ -132,6 +132,19 @@ export default function SuggestionEditModal({
                   onChange={(e) => onChange({ ...form, description: e.target.value })}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-reward-threshold">Seuil (points ou tampons)</Label>
+                <Input
+                  id="edit-reward-threshold"
+                  type="number"
+                  min="1"
+                  value={form?.recommended_threshold ?? ''}
+                  onChange={(e) => onChange({
+                    ...form,
+                    recommended_threshold: e.target.value === '' ? '' : Number(e.target.value),
+                  })}
+                />
+              </div>
             </>
           ) : null}
 

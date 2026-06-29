@@ -201,6 +201,24 @@ export function normalizeRestaurantProfilePayload(raw) {
   };
 }
 
+export function validateEssentialRestaurantProfilePayload(data) {
+  if (!data.business_type) return 'Sélectionnez un type de commerce.';
+  if (!data.main_objective) return 'Sélectionnez un objectif principal.';
+  if (!data.generosity_level) return 'Indiquez votre niveau de générosité.';
+  return null;
+}
+
+export function applyEssentialProfileDefaults(payload) {
+  const normalized = normalizeRestaurantProfilePayload(payload);
+  return {
+    ...normalized,
+    preferred_rewards: normalized.preferred_rewards.length
+      ? normalized.preferred_rewards
+      : ['produit_offert'],
+    tone_of_voice: normalized.tone_of_voice || 'chaleureux',
+  };
+}
+
 export function validateRestaurantProfilePayload(data) {
   if (!data.business_type) return 'Sélectionnez un type de commerce.';
   if (!data.main_objective) return 'Sélectionnez un objectif principal.';
@@ -230,8 +248,19 @@ export async function fetchRestaurantProfile(businessId) {
   return data;
 }
 
+export async function saveEssentialRestaurantProfile(businessId, essentialFields) {
+  const existing = await fetchRestaurantProfile(businessId).catch(() => null);
+  const mergedForm = {
+    ...buildProfileFormDefaults({ profile: existing }),
+    business_type: essentialFields.business_type,
+    main_objective: essentialFields.main_objective,
+    generosity_level: essentialFields.generosity_level,
+  };
+  return saveRestaurantProfile(businessId, mergedForm);
+}
+
 export async function saveRestaurantProfile(businessId, form) {
-  const payload = normalizeRestaurantProfilePayload(formToProfilePayload(form));
+  const payload = applyEssentialProfileDefaults(formToProfilePayload(form));
   const validationError = validateRestaurantProfilePayload(payload);
   if (validationError) throw new Error(validationError);
 

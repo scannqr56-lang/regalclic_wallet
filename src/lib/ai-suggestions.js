@@ -5,11 +5,11 @@ const GENERATE_TIMEOUT_MS = 150_000;
 const FULL_PLAN_TIMEOUT_MS = 600_000;
 
 export const BATCH_TYPE_LABELS = {
-  full_plan: 'Plan complet',
+  full_plan: 'Toutes les idées',
   rewards_only: 'Récompenses',
-  offers_only: 'Offres promo',
-  notifications_only: 'Notifications',
-  calendar_only: 'Calendrier',
+  offers_only: 'Offres',
+  notifications_only: 'Messages',
+  calendar_only: 'Planning du mois',
 };
 
 export const BATCH_STATUS_LABELS = {
@@ -22,22 +22,22 @@ export const SUGGESTION_TYPE_LABELS = {
   reward: 'Récompense',
   threshold: 'Seuil',
   offer: 'Offre',
-  notification: 'Notification',
-  calendar_tip: 'Calendrier',
+  notification: 'Message',
+  calendar_tip: 'Planning',
 };
 
 export const SUGGESTION_STATUS_LABELS = {
-  pending: 'À valider',
-  accepted: 'Acceptée',
+  pending: 'À choisir',
+  accepted: 'Retenue',
   modified: 'Modifiée',
-  discarded: 'Ignorée',
-  applied: 'Appliquée',
+  discarded: 'Écartée',
+  applied: 'Activée',
 };
 
 export const MARGIN_RISK_LABELS = {
-  low: 'Marge faible',
-  medium: 'Marge moyenne',
-  high: 'Marge élevée',
+  low: 'Coût faible',
+  medium: 'Coût modéré',
+  high: 'Coût élevé',
 };
 
 export const OBJECTIVE_LABELS = {

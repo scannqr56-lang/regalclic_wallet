@@ -15,7 +15,6 @@ import AiQuotaBanner from '@/components/ai-assistant/AiQuotaBanner';
 import AiActivitySummary from '@/components/ai-assistant/AiActivitySummary';
 import AiCustomerInsightsPanel from '@/components/ai-assistant/AiCustomerInsightsPanel';
 import AiReadySuggestionsBanner from '@/components/ai-assistant/AiReadySuggestionsBanner';
-import AiRoadmapPanel from '@/components/ai-assistant/AiRoadmapPanel';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,7 +61,7 @@ export default function AiAssistantHomePage() {
       onboardingQuery.data?.extractedMenuId,
     ),
     onSuccess: async () => {
-      toast.success('Plan fidélité généré — validez vos suggestions');
+      toast.success('Vos idées sont prêtes — choisissez celles à activer');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['ai-assistant-quota', business.id] }),
         queryClient.invalidateQueries({ queryKey: ['ai-onboarding', business.id] }),
@@ -72,7 +71,7 @@ export default function AiAssistantHomePage() {
       navigate('/dashboard/ai-assistant/suggestions');
     },
     onError: (error) => {
-      toast.error(error?.message || 'Génération impossible');
+      toast.error(error?.message || 'Impossible de préparer les idées pour le moment');
     },
   });
 
@@ -83,7 +82,7 @@ export default function AiAssistantHomePage() {
 
   if (businessLoading) {
     return (
-      <DashboardLayout title="Assistant IA" description="Chargement…">
+      <DashboardLayout title="Mes idées" description="Chargement…">
         <Skeleton className="h-64 w-full" />
       </DashboardLayout>
     );
@@ -91,8 +90,8 @@ export default function AiAssistantHomePage() {
 
   return (
     <DashboardLayout
-      title="Assistant IA Fidélité"
-      description="Votre plan marketing Wallet en quelques étapes — validation manuelle obligatoire"
+      title="Suggestions pour votre carte"
+      description="Des idées d’offres, de récompenses et de messages — rien n’est publié sans votre accord"
     >
       <div className="space-y-6">
         <AiAssistantNav />
@@ -104,15 +103,19 @@ export default function AiAssistantHomePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Sparkles className="h-5 w-5 text-rc-teal" />
-                Génération en 1 clic
+                Obtenir mes idées
               </CardTitle>
               <CardDescription>
-                5 récompenses · 5 offres · 10 notifications Wallet · calendrier 30 jours
+                Offres, récompenses, messages Wallet et planning du mois — en une seule étape
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <AiQuotaBanner quota={quota} kind="generation" />
               <AiActivitySummary businessId={business?.id} />
+
+              <p className="text-xs text-slate-500">
+                Rien n&apos;est envoyé à vos clients tant que vous n&apos;avez pas validé chaque idée.
+              </p>
 
               <Button
                 size="lg"
@@ -123,29 +126,29 @@ export default function AiAssistantHomePage() {
                 {generateMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Génération en cours (2–4 min)…
+                    Préparation en cours (2–4 min)…
                   </>
                 ) : (
                   <>
                     <Bot className="mr-2 h-4 w-4" />
-                    Générer mon plan fidélité
+                    Obtenir mes idées
                   </>
                 )}
               </Button>
 
               {!onboarding?.readyForFullPlan ? (
                 <p className="text-sm text-amber-800">
-                  Complétez les étapes ci-contre avant de lancer la génération.
+                  Complétez les étapes de progression à droite avant de continuer.
                 </p>
               ) : null}
 
               {onboarding?.pendingSuggestions ? (
                 <p className="text-sm text-slate-600">
-                  {onboarding.pendingSuggestions} suggestion
-                  {onboarding.pendingSuggestions > 1 ? 's' : ''} en attente de validation.
+                  {onboarding.pendingSuggestions} idée
+                  {onboarding.pendingSuggestions > 1 ? 's' : ''} en attente de votre choix.
                   {' '}
                   <Link className="font-medium text-rc-teal underline" to="/dashboard/ai-assistant/suggestions">
-                    Ouvrir le hub
+                    Choisir mes idées
                   </Link>
                 </p>
               ) : null}
@@ -154,7 +157,7 @@ export default function AiAssistantHomePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Parcours MVP</CardTitle>
+              <CardTitle className="text-base">Votre progression</CardTitle>
               <CardDescription>
                 {onboarding
                   ? `${onboarding.completedCount} / ${onboarding.totalSteps} étapes`
@@ -186,25 +189,22 @@ export default function AiAssistantHomePage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Générations ciblées</CardTitle>
-            <CardDescription>
-              Chaque génération séparée consomme 1 quota — le plan complet en compte pour 1 seul.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+        <details className="rounded-lg border bg-white">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-700">
+            Options avancées — générer une seule catégorie
+          </summary>
+          <div className="flex flex-wrap gap-2 border-t px-4 pb-4 pt-3">
             <Button variant="outline" size="sm" asChild>
-              <Link to="/dashboard/ai-assistant/rewards">Récompenses</Link>
+              <Link to="/dashboard/ai-assistant/rewards">Récompenses seules</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/dashboard/ai-assistant/offers">Offres</Link>
+              <Link to="/dashboard/ai-assistant/offers">Offres seules</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/dashboard/ai-assistant/notifications">Notifications</Link>
+              <Link to="/dashboard/ai-assistant/notifications">Messages seuls</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/dashboard/ai-assistant/calendar">Calendrier</Link>
+              <Link to="/dashboard/ai-assistant/calendar">Planning du mois</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
               <Link to="/dashboard/ai-assistant/history">
@@ -212,12 +212,10 @@ export default function AiAssistantHomePage() {
                 Historique
               </Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </details>
 
         <AiCustomerInsightsPanel businessId={business?.id} />
-
-        <AiRoadmapPanel />
       </div>
     </DashboardLayout>
   );

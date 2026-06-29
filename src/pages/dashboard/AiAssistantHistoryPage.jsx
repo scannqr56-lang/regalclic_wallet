@@ -56,10 +56,10 @@ function BatchRow({ batch, businessId }) {
         <p className="text-xs text-slate-500">{formatDate(batch.created_at)}</p>
         {batch.status === 'completed' && summaryQuery.data ? (
           <p className="text-xs text-slate-600">
-            {summaryQuery.data.suggestions_count} suggestion
+            {summaryQuery.data.suggestions_count} idée
             {summaryQuery.data.suggestions_count > 1 ? 's' : ''}
             {summaryQuery.data.calendar_count
-              ? ` · ${summaryQuery.data.calendar_count} jour${summaryQuery.data.calendar_count > 1 ? 's' : ''} calendrier`
+              ? ` · ${summaryQuery.data.calendar_count} jour${summaryQuery.data.calendar_count > 1 ? 's' : ''} de planning`
               : ''}
           </p>
         ) : null}
@@ -74,7 +74,7 @@ function BatchRow({ batch, businessId }) {
       <div className="flex flex-wrap gap-2">
         {batch.status === 'completed' ? (
           <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/suggestions">Valider</Link>
+            <Link to="/dashboard/ideas?tab=offers">Choisir</Link>
           </Button>
         ) : batch.status === 'processing' ? (
           <span className="inline-flex items-center gap-1.5 text-xs text-amber-700">
@@ -102,7 +102,7 @@ export default function AiAssistantHistoryPage() {
 
   if (businessLoading) {
     return (
-      <DashboardLayout title="Historique IA" description="Chargement…">
+      <DashboardLayout title="Historique" description="Chargement…">
         <Skeleton className="h-64 w-full" />
       </DashboardLayout>
     );
@@ -112,8 +112,8 @@ export default function AiAssistantHistoryPage() {
 
   return (
     <DashboardLayout
-      title="Historique des générations"
-      description="Suivi des lots IA — 1 plan complet = 1 quota consommé"
+      title="Historique"
+      description="Suivi de vos préparations d’idées"
     >
       <div className="space-y-6">
         <AiAssistantNav />
@@ -122,10 +122,10 @@ export default function AiAssistantHistoryPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <History className="h-5 w-5 text-rc-teal" />
-              Lots de génération
+              Préparations récentes
             </CardTitle>
             <CardDescription>
-              Plans complets et générations ciblées (récompenses, offres, notifications, calendrier).
+              Toutes vos idées, générations ciblées et planning du mois.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -133,10 +133,10 @@ export default function AiAssistantHistoryPage() {
               <Skeleton className="h-32 w-full" />
             ) : batches.length === 0 ? (
               <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-slate-500">
-                Aucune génération pour l&apos;instant.
+                Aucune préparation pour l&apos;instant.
                 {' '}
-                <Link className="font-medium text-rc-teal underline" to="/dashboard/ai-assistant">
-                  Lancer un plan complet
+                <Link className="font-medium text-rc-teal underline" to="/dashboard/ideas">
+                  Obtenir mes idées
                 </Link>
               </div>
             ) : (

@@ -44,12 +44,12 @@ export function formatAiActionLabel(action) {
 export function formatBusinessAiActivityLine(summary) {
   if (!summary?.total_calls) return null;
 
-  const parts = [`${summary.total_calls} appel${summary.total_calls > 1 ? 's' : ''} IA ce mois`];
+  const parts = [`${summary.total_calls} action${summary.total_calls > 1 ? 's' : ''} ce mois`];
   const extractions = summary.by_action?.extract_menu || 0;
   const generations = summary.by_action?.generate_batch || 0;
 
-  if (extractions) parts.push(`${extractions} extraction${extractions > 1 ? 's' : ''}`);
-  if (generations) parts.push(`${generations} génération${generations > 1 ? 's' : ''}`);
+  if (extractions) parts.push(`${extractions} menu${extractions > 1 ? 'x' : ''} analysé${extractions > 1 ? 's' : ''}`);
+  if (generations) parts.push(`${generations} préparation${generations > 1 ? 's' : ''} d’idées`);
 
   return parts.join(' · ');
 }
