@@ -1,4 +1,6 @@
-export const AI_PROMPT_VERSION = Deno.env.get("AI_PROMPT_VERSION") || "v1.0.0";
+import { AI_PROMPT_VERSION } from "./system.ts";
+
+export { AI_PROMPT_VERSION };
 
 export const EXTRACT_MENU_SYSTEM_PROMPT = `Tu es un assistant spécialisé dans l'extraction structurée de cartes et menus de restaurants français.
 

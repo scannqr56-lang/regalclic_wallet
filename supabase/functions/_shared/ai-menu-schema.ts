@@ -1,3 +1,5 @@
+import { extractJsonObject } from "./ai-schemas/json-parse.ts";
+
 export type MenuItem = {
   name: string;
   description?: string | null;
@@ -158,15 +160,7 @@ export function summarizeExtractedMenu(data: ExtractedMenuJson): string {
 }
 
 export function parseExtractedMenuResponse(content: string): ExtractedMenuJson {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Réponse IA non JSON");
-    parsed = JSON.parse(match[0]);
-  }
-
+  const parsed = extractJsonObject(content);
   const normalized = normalizeExtractedMenuJson(parsed);
   const validationError = validateExtractedMenuJson(normalized);
   if (validationError) {

@@ -25,9 +25,32 @@ import {
   fetchAdminMerchants,
   updateMerchantAccount,
 } from '@/lib/admin-merchants';
+import AdminAiUsagePanel from '@/components/admin/AdminAiUsagePanel';
 
 const textareaClassName =
   'flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+const AI_PLAN_OPTIONS = [
+  { value: 'starter', label: 'Starter (1 essai IA)' },
+  { value: 'pro_ia', label: 'Pro IA (5 gen. / 2 uploads / mois)' },
+  { value: 'business', label: 'Business (20 gen. / 10 uploads / mois)' },
+];
+
+function AiPlanBadge({ business }) {
+  if (!business?.plan) return null;
+  const option = AI_PLAN_OPTIONS.find((row) => row.value === business.plan);
+  const styles = {
+    starter: 'bg-slate-100 text-slate-700',
+    pro_ia: 'bg-violet-100 text-violet-800',
+    business: 'bg-indigo-100 text-indigo-800',
+  };
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[business.plan] || styles.starter}`}>
+      {option?.label.split(' (')[0] || business.plan}
+      {business.plan === 'starter' && business.ai_trial_used ? ' · essai consommé' : ''}
+    </span>
+  );
+}
 
 function StatusBadge({ merchant }) {
   if (merchant.is_disabled) {
@@ -142,6 +165,8 @@ function MerchantEditPanel({ merchant, onClose, onSaved }) {
   const [businessSlug, setBusinessSlug] = useState(merchant.business?.slug || '');
   const [businessPhone, setBusinessPhone] = useState(merchant.business?.phone || '');
   const [businessCity, setBusinessCity] = useState(merchant.business?.city || '');
+  const [businessPlan, setBusinessPlan] = useState(merchant.business?.plan || 'starter');
+  const [resetAiTrial, setResetAiTrial] = useState(false);
 
   const saveMutation = useMutation({
     mutationFn: () => updateMerchantAccount({
@@ -155,6 +180,8 @@ function MerchantEditPanel({ merchant, onClose, onSaved }) {
         slug: businessSlug,
         phone: businessPhone || null,
         city: businessCity || null,
+        plan: businessPlan,
+        ai_trial_used: resetAiTrial ? false : merchant.business.ai_trial_used,
       } : undefined,
     }),
     onSuccess: (result) => {
@@ -214,6 +241,28 @@ function MerchantEditPanel({ merchant, onClose, onSaved }) {
                 <Label>Ville</Label>
                 <Input value={businessCity} onChange={(e) => setBusinessCity(e.target.value)} />
               </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Plan Assistant IA</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={businessPlan}
+                  onChange={(e) => setBusinessPlan(e.target.value)}
+                >
+                  {AI_PLAN_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              {merchant.business.plan === 'starter' && merchant.business.ai_trial_used ? (
+                <label className="flex items-center gap-2 text-sm md:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={resetAiTrial}
+                    onChange={(e) => setResetAiTrial(e.target.checked)}
+                  />
+                  Réinitialiser l&apos;essai IA gratuit
+                </label>
+              ) : null}
             </div>
           </div>
         ) : (
@@ -308,6 +357,8 @@ export default function AdminMerchantsPage() {
       description="Créez les comptes restaurateur et gérez leurs accès."
     >
       <div className="space-y-6">
+        <AdminAiUsagePanel />
+
         <CreateMerchantForm
           onCreated={(result) => {
             setLastCredentials(result.credentials);
@@ -366,6 +417,7 @@ export default function AdminMerchantsPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium text-slate-900">{merchant.email}</p>
                           <StatusBadge merchant={merchant} />
+                          {merchant.business ? <AiPlanBadge business={merchant.business} /> : null}
                         </div>
                         {merchant.display_name ? (
                           <p className="text-sm text-slate-600">{merchant.display_name}</p>

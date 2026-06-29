@@ -1,0 +1,93 @@
+import { supabase } from '@/lib/supabase';
+
+const AI_GENERATE_SUGGESTIONS_FUNCTION = 'ai-generate-suggestions';
+
+export const PLAN_LABELS = {
+  starter: 'Starter',
+  pro_ia: 'Pro IA',
+  business: 'Business',
+};
+
+function getSupabaseConfig() {
+  const url = import.meta.env.VITE_SUPABASE_URL ?? '';
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+  return { url, anonKey };
+}
+
+async function invokeQuotaAction(action, businessId) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Session expirée');
+
+  const { url, anonKey } = getSupabaseConfig();
+  const endpoint = `${url.replace(/\/$/, '')}/functions/v1/${AI_GENERATE_SUGGESTIONS_FUNCTION}`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: anonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action, business_id: businessId }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Impossible de charger les quotas');
+  }
+  return data;
+}
+
+/** Résumé complet : plan, génération, uploads, kill switch */
+export async function fetchAssistantQuota(businessId) {
+  const data = await invokeQuotaAction('quota_status', businessId);
+  return data.quota;
+}
+
+/** Compatibilité pages existantes */
+export async function fetchGenerationQuota(businessId) {
+  const summary = await fetchAssistantQuota(businessId);
+  return summary?.generation ?? summary;
+}
+
+export function getQuotaBlockMessage(quota, kind = 'generation') {
+  if (!quota?.assistant_enabled) {
+    return "L'assistant IA est temporairement indisponible. Réessayez plus tard.";
+  }
+
+  const section = kind === 'upload' ? quota.upload : quota.generation;
+  if (section?.reason) return section.reason;
+
+  if (kind === 'upload' && quota.upload && !quota.upload.allowed) {
+    return "Quota d'uploads atteint.";
+  }
+  if (kind === 'generation' && quota.generation && !quota.generation.allowed) {
+    return 'Quota de génération atteint.';
+  }
+
+  return null;
+}
+
+export function formatGenerationQuotaLine(quota) {
+  const generation = quota?.generation ?? quota;
+  if (!generation) return null;
+
+  const parts = [
+    `Générations : ${generation.monthly_used} / ${generation.monthly_limit}`,
+  ];
+  if (generation.trial_available) parts.push('essai gratuit disponible');
+  if (quota?.plan_label) parts.unshift(`Plan ${quota.plan_label}`);
+  return parts.join(' · ');
+}
+
+export function formatUploadQuotaLine(quota) {
+  const upload = quota?.upload;
+  if (!upload) return null;
+
+  const parts = [
+    `Menus envoyés : ${upload.monthly_used} / ${upload.monthly_limit}`,
+  ];
+  if (upload.trial_available) parts.push('inclus dans l\'essai');
+  if (quota?.plan_label) parts.unshift(`Plan ${quota.plan_label}`);
+  return parts.join(' · ');
+}

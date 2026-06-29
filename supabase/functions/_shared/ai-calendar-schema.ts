@@ -1,3 +1,6 @@
+import { extractJsonObject } from "./ai-schemas/json-parse.ts";
+import { sanitizeSuggestionText, sanitizeWalletMessage } from "./ai-schemas/sanitize-text.ts";
+
 export type CalendarItemInput = {
   scheduled_date: string;
   title: string;
@@ -65,7 +68,7 @@ function normalizeCalendarItem(
 
   const title = asString(item.title);
   const offer_message = asString(item.offer_message, title);
-  const wallet_message = truncate(asString(item.wallet_message, offer_message), WALLET_MSG_MAX);
+  const wallet_message = truncate(sanitizeWalletMessage(item.wallet_message || offer_message, WALLET_MSG_MAX), WALLET_MSG_MAX);
   if (!title || !wallet_message) return null;
 
   let objective = asString(item.objective, "offre");
@@ -85,7 +88,7 @@ function normalizeCalendarItem(
     target_segment: TARGET_SEGMENTS.has(targetRaw)
       ? targetRaw as CalendarItemInput["target_segment"]
       : "all",
-    advice: asString(
+    advice: sanitizeSuggestionText(
       item.advice,
       "À valider selon vos marges et votre planning.",
     ),
@@ -97,14 +100,7 @@ export function parseCalendarGenerationResponse(
   startDate: string,
   programType: "points" | "stamps",
 ): CalendarGenerationResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Réponse IA non JSON");
-    parsed = JSON.parse(match[0]);
-  }
+  const parsed = extractJsonObject(content);
 
   if (!parsed || typeof parsed !== "object") {
     throw new Error("Réponse IA invalide");

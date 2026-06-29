@@ -1,3 +1,6 @@
+import { extractJsonObject } from "./ai-schemas/json-parse.ts";
+import { sanitizeSuggestionText } from "./ai-schemas/sanitize-text.ts";
+
 export type RewardSuggestion = {
   title: string;
   description: string;
@@ -63,7 +66,7 @@ function normalizeReward(raw: unknown, defaultType: "points" | "stamps"): Reward
     type,
     recommended_threshold: threshold,
     margin_risk: MARGIN_RISKS.has(marginRaw) ? marginRaw as RewardSuggestion["margin_risk"] : "medium",
-    explanation: asString(item.explanation, "À valider selon vos coûts et votre carte."),
+    explanation: sanitizeSuggestionText(item.explanation, "À valider selon vos coûts et votre carte."),
   };
 }
 
@@ -79,7 +82,7 @@ function normalizeThreshold(raw: unknown, defaultType: "points" | "stamps"): Thr
   return {
     threshold,
     type,
-    rationale: asString(item.rationale, "Seuil à valider selon votre programme."),
+    rationale: sanitizeSuggestionText(item.rationale, "Seuil à valider selon votre programme."),
   };
 }
 
@@ -87,14 +90,7 @@ export function parseRewardsGenerationResponse(
   content: string,
   programType: "points" | "stamps",
 ): RewardsGenerationResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Réponse IA non JSON");
-    parsed = JSON.parse(match[0]);
-  }
+  const parsed = extractJsonObject(content);
 
   if (!parsed || typeof parsed !== "object") {
     throw new Error("Réponse IA invalide");

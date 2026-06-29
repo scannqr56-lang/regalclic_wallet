@@ -181,3 +181,145 @@ Politique V1 : la carte se met toujours à jour ; seules certaines actions décl
 | Client reçoit notif à chaque scan | Comportement corrigé en V1 : fidélité = silent ; vérifier déploiement Edge Functions |
 | Promo sans notif visible | Cocher « Notifier à l'activation » ou utiliser « Notifier tous » ; vérifier quota journalier |
 | Récompense débloquée sans notif | Normal par défaut ; activer `WALLET_NOTIFY_REWARD_UNLOCKED=true` si souhaité |
+
+---
+
+## 11. Assistant IA Fidélité (Pro IA)
+
+Checklist manuelle avant lancement Pro IA. Routes : `/dashboard/ai-assistant/*` · Admin : `/admin/merchants` (panneau observabilité).
+
+### Prérequis Assistant IA
+
+- [ ] Edge Functions déployées : `ai-menu-upload`, `ai-extract-menu`, `ai-generate-suggestions`, `admin-merchants`
+- [ ] Secret `OPENAI_API_KEY` configuré sur Supabase
+- [ ] Bucket `business-private` actif (menus privés)
+- [ ] Commerce avec programme fidélité actif (points ou tampons)
+- [ ] Compte test **Starter** (1 essai) + compte test **Pro IA** (5 gen. / 2 uploads / mois)
+- [ ] Compte admin RegalClic pour quotas / coûts (`platform_admins`)
+
+### 11.1 Upload menu
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.1.1 | Ouvrir `/dashboard/ai-assistant/upload` | Bandeau quota uploads + activité IA du mois |
+| 11.1.2 | Upload PDF menu texte lisible | Statut `uploaded` ; ligne `ai_usage_logs` action `upload_menu` |
+| 11.1.3 | Upload photo JPEG/PNG menu | Même comportement ; fichier dans `business-private` |
+| 11.1.4 | Fichier `.docx` ou `.txt` | Erreur format non supporté (400) |
+| 11.1.5 | Fichier > 10 Mo | Erreur taille max |
+| 11.1.6 | Fichier vide | Erreur fichier vide |
+| 11.1.7 | Quota uploads Starter épuisé | Bandeau ambre + upload bloqué |
+| 11.1.8 | `AI_ASSISTANT_ENABLED=false` | Bandeau « Assistant indisponible » |
+
+### 11.2 Extraction menu
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.2.1 | Lancer extraction sur PDF | Statut `extracting` puis `extracted` |
+| 11.2.2 | Page `/dashboard/ai-assistant/menu/:uploadId` | Éditeur catégories / produits / formules |
+| 11.2.3 | Menu sans prix détectés | Produits sans prix ou `price_estimated` ; édition manuelle OK |
+| 11.2.4 | Menu long (> 80 produits) | Extraction tronquée côté prompt ; édition complète possible |
+| 11.2.5 | Photo floue / illisible | Extraction partielle ou `failed` + message utilisateur clair |
+| 11.2.6 | Sauvegarde manuelle JSON valide | Statut `extracted` sans nouvel appel OpenAI |
+| 11.2.7 | Sauvegarde menu vide (sans catégorie) | Validation front : message d'erreur |
+| 11.2.8 | Échec extraction | Statut `failed` ; message « réessayez ou contactez le support » ; dashboard reste utilisable |
+| 11.2.9 | Vérifier `ai_usage_logs` | 1 ligne `extract_menu` par appel OpenAI (retry = lignes multiples) |
+
+### 11.3 Questionnaire profil
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.3.1 | `/dashboard/ai-assistant/profile` | 8 questions affichées |
+| 11.3.2 | Sauvegarder profil incomplet | Validation champs requis |
+| 11.3.3 | Sauvegarder profil complet | Ligne `ai_restaurant_profiles` ; pas d'email/tél. dans prompts (PII filtrée) |
+
+### 11.4 Génération IA
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.4.1 | Générer récompenses `/ai-assistant/rewards` | Batch `completed` ; ≥ 5 suggestions `reward` + seuils `threshold` |
+| 11.4.2 | Générer offres `/ai-assistant/offers` | Suggestions type `offer` en `pending` |
+| 11.4.3 | Générer notifications `/ai-assistant/notifications` | Suggestions type `notification` ; titres ≤ 40 car., corps ≤ 120 |
+| 11.4.4 | Générer calendrier `/ai-assistant/calendar` | ~30 entrées `ai_marketing_calendar_items` |
+| 11.4.5 | Sans menu extrait | Bouton génération désactivé + message prérequis |
+| 11.4.6 | Sans profil ou programme | Bouton désactivé |
+| 11.4.7 | Quota génération atteint (Pro IA) | Erreur quota ; bandeau ambre |
+| 11.4.8 | Essai Starter consommé | Message upgrade Pro IA |
+| 11.4.9 | Échec génération (JSON invalide simulé) | Batch `failed` ; toast message utilisateur ; pas de crash page |
+| 11.4.10 | Bandeau quota | « Générations : X / Y » cohérent avec `ai_suggestion_batches` du mois |
+
+### 11.5 Validation suggestions
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.5.1 | `/dashboard/ai-assistant/suggestions` | Liste + filtres type / statut / marge |
+| 11.5.2 | **Utiliser** une offre | Brouillon `wallet_campaigns` créé ; suggestion `applied` |
+| 11.5.3 | **Utiliser** une notification | Campagne brouillon avec message Wallet |
+| 11.5.4 | **Utiliser** récompense / seuil | Programme fidélité prérempli ou mis à jour (selon type) |
+| 11.5.5 | **Ignorer** une suggestion | Statut `discarded` |
+| 11.5.6 | **Modifier** puis appliquer | Statut `modified` ; contenu édité conservé |
+| 11.5.7 | Copier texte suggestion | Presse-papiers OK |
+| 11.5.8 | Calendrier → créer campagne | Entrée calendrier liée à `wallet_campaign_id` |
+
+### 11.6 Intégration Wallet (non-régression)
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.6.1 | Brouillon offre IA visible `/dashboard/offers` | Campagne en brouillon, dates cohérentes |
+| 11.6.2 | Activer campagne IA (sans notifier) | Promo sur carte client ; sync OK |
+| 11.6.3 | Activer campagne IA (avec notifier) | Promo + notif lock-screen (cf. section 8) |
+| 11.6.4 | Scan + points après activation IA | Wallet V1 inchangé (silent sync) |
+| 11.6.5 | Récompense IA appliquée au programme | Seuil / libellé visible dashboard programme |
+
+### 11.7 Sécurité & quotas
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.7.1 | `/dashboard/ai-assistant/*` sans auth | Redirection `/auth` |
+| 11.7.2 | Restaurateur A lit menu commerce B (UUID) | RLS : accès refusé |
+| 11.7.3 | Appel Edge Function sans token | 401 |
+| 11.7.4 | `ai_usage_logs` insert côté client | Refusé (service role uniquement) |
+| 11.7.5 | Membre lit ses propres `ai_usage_logs` | SELECT OK via RLS |
+| 11.7.6 | Admin modifie plan `pro_ia` / reset essai | Quotas mis à jour immédiatement |
+
+### 11.8 Observabilité & coûts (admin)
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.8.1 | `/admin/merchants` panneau IA | Coût USD estimé + appels du mois |
+| 11.8.2 | Après extraction + génération | Lignes dans tableau « Par commerce » |
+| 11.8.3 | Seuil `AI_MONTHLY_COST_ALERT_USD` dépassé | Bandeau alerte rouge admin |
+| 11.8.4 | Restaurateur page upload | « X appels IA ce mois » (sans coût USD) |
+
+### 11.9 Tests automatisés (CI locale)
+
+```bash
+npm install
+npm run test          # Vitest — logique front (menu, quotas, suggestions)
+npm run test:ai-schemas   # Deno — parsing JSON, sanitisation, erreurs IA
+npm run test:all      # Les deux
+```
+
+| Suite | Fichiers couverts |
+|-------|-------------------|
+| Vitest | `ai-menu-extraction`, `ai-quota`, `ai-usage`, `ai-apply-suggestion` |
+| Deno | `json-parse`, `sanitize-text`, `generation-errors` |
+
+### Scénario démo Assistant IA (10 min)
+
+1. Upload menu PDF → extraction → correction manuelle si besoin
+2. Compléter questionnaire profil (8 questions)
+3. Générer récompenses + offres
+4. Valider une offre → brouillon campagne
+5. Activer la campagne → montrer promo sur carte Wallet test
+6. (Admin) Montrer coûts IA agrégés du mois
+
+### Dépannage Assistant IA
+
+| Symptôme | Piste |
+|----------|-------|
+| « Service IA non configuré » | Vérifier `OPENAI_API_KEY` secret Supabase |
+| Génération bloquée quota | Admin → plan Pro IA ou reset `ai_trial_used` |
+| Extraction lente / timeout | Réessayer ; saisie manuelle fallback |
+| Page blanche menu | Vérifier console ; imports React Router |
+| Coûts admin à 0 | Vérifier déploiement Edge Functions phase 14 |
+| JSON invalide persistant | Logs `ai_suggestion_batches.error_message` ; retry auto = 2 appels max |

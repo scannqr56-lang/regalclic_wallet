@@ -7,7 +7,6 @@ import {
 import {
   bytesToBase64,
   callOpenAiChat,
-  estimateOpenAiCostUsd,
 } from "./ai-openai.ts";
 import {
   normalizeExtractedMenuJson,
@@ -16,6 +15,9 @@ import {
   validateExtractedMenuJson,
   type ExtractedMenuJson,
 } from "./ai-menu-schema.ts";
+import { assertAssistantEnabled } from "./ai-quota-core.ts";
+import { toUserGenerationError } from "./ai-schemas/generation-errors.ts";
+import { createAiUsageLogger } from "./ai-usage-log.ts";
 
 const EXTRACT_MODEL = Deno.env.get("AI_MODEL_MENU_EXTRACTION") || "gpt-4o";
 
@@ -27,11 +29,6 @@ type MenuUploadRow = {
   file_type: string;
   status: string;
 };
-
-function isAssistantEnabled(): boolean {
-  const flag = (Deno.env.get("AI_ASSISTANT_ENABLED") || "true").toLowerCase();
-  return flag !== "false" && flag !== "0";
-}
 
 function buildUserContent(
   fileName: string,
@@ -69,24 +66,44 @@ function buildUserContent(
 async function runOpenAiExtraction(
   upload: MenuUploadRow,
   fileBytes: Uint8Array,
+  onProviderCall?: (call: {
+    model: string;
+    usage: { prompt_tokens: number; completion_tokens: number };
+    durationMs: number;
+  }) => void | Promise<void>,
 ): Promise<{ extracted: ExtractedMenuJson; summary: string; model: string; usage: { prompt_tokens: number; completion_tokens: number }; durationMs: number }> {
   const started = Date.now();
+  const userContent = buildUserContent(upload.file_name, upload.file_type, fileBytes);
   let lastError: Error | null = null;
+  let repairSuffix = "";
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
+      const messages: Array<{ role: "system" | "user"; content: string | ReturnType<typeof buildUserContent> }> = [
+        { role: "system", content: EXTRACT_MENU_SYSTEM_PROMPT },
+        { role: "user", content: userContent },
+      ];
+
+      if (repairSuffix) {
+        messages.push({ role: "user", content: repairSuffix });
+      }
+
+      const callStarted = Date.now();
       const result = await callOpenAiChat({
         model: EXTRACT_MODEL,
         jsonMode: true,
         timeoutMs: 90_000,
-        messages: [
-          { role: "system", content: EXTRACT_MENU_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: buildUserContent(upload.file_name, upload.file_type, fileBytes),
-          },
-        ],
+        messages,
       });
+      const durationMs = Date.now() - callStarted;
+
+      if (onProviderCall) {
+        await onProviderCall({
+          model: result.model,
+          usage: result.usage,
+          durationMs,
+        });
+      }
 
       const extracted = parseExtractedMenuResponse(result.content);
       return {
@@ -98,6 +115,11 @@ async function runOpenAiExtraction(
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      repairSuffix = [
+        "CORRECTION REQUISE : la réponse précédente n'était pas un JSON menu valide.",
+        `Erreur : ${lastError.message}`,
+        "Réponds UNIQUEMENT avec un objet JSON valide conforme au schéma menu.",
+      ].join(" ");
     }
   }
 
@@ -110,9 +132,7 @@ export async function extractMenuUpload(
   menuUploadId: string,
   userId: string,
 ): Promise<{ upload: Record<string, unknown>; extracted: ExtractedMenuJson }> {
-  if (!isAssistantEnabled()) {
-    throw new Error("Assistant IA temporairement indisponible");
-  }
+  assertAssistantEnabled();
 
   const { data: upload, error: fetchError } = await userClient
     .from("ai_menu_uploads")
@@ -147,9 +167,17 @@ export async function extractMenuUpload(
     }
 
     const fileBytes = new Uint8Array(await fileData.arrayBuffer());
-    const { extracted, summary, model, usage, durationMs } = await runOpenAiExtraction(
+    const logProviderCall = createAiUsageLogger(admin, {
+      business_id: upload.business_id,
+      user_id: userId,
+      action: "extract_menu",
+      batch_id: null,
+    });
+
+    const { extracted, summary } = await runOpenAiExtraction(
       upload,
       fileBytes,
+      logProviderCall,
     );
 
     const { data: updated, error: updateError } = await userClient
@@ -166,21 +194,9 @@ export async function extractMenuUpload(
 
     if (updateError) throw new Error(updateError.message);
 
-    await admin.from("ai_usage_logs").insert({
-      business_id: upload.business_id,
-      user_id: userId,
-      action: "extract_menu",
-      batch_id: null,
-      tokens_input: usage.prompt_tokens,
-      tokens_output: usage.completion_tokens,
-      cost_estimate: estimateOpenAiCostUsd(model, usage),
-      model_used: model,
-      duration_ms: durationMs,
-    });
-
     return { upload: updated, extracted };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Extraction échouée";
+    const message = toUserGenerationError(error);
 
     await userClient
       .from("ai_menu_uploads")

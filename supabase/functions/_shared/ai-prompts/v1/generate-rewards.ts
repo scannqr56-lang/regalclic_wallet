@@ -1,3 +1,4 @@
+import { prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
 import { AI_SYSTEM_RULES } from "./system.ts";
 
 export const GENERATE_REWARDS_SYSTEM_PROMPT = `${AI_SYSTEM_RULES}
@@ -54,10 +55,10 @@ Programme fidélité actuel :
 - points par euro : ${input.loyaltyProgram.points_per_euro ?? 1}
 
 Profil restaurateur :
-${JSON.stringify(input.profile, null, 2)}
+${JSON.stringify(stripPiiFromProfile(input.profile as Record<string, unknown>), null, 2)}
 
 Menu extrait (produits et prix) :
-${JSON.stringify(input.menuJson, null, 2)}
+${JSON.stringify(prepareMenuJsonForPrompt(input.menuJson), null, 2)}
 
 Propose 5 récompenses concrètes et 3 options de seuil adaptées au contexte français.`;
 }

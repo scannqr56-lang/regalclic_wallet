@@ -13,6 +13,8 @@ import {
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import MenuUploadZone from '@/components/ai-assistant/MenuUploadZone';
+import AiQuotaBanner from '@/components/ai-assistant/AiQuotaBanner';
+import AiActivitySummary from '@/components/ai-assistant/AiActivitySummary';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +29,7 @@ import {
   isMenuPdfMime,
   uploadMenuFile,
 } from '@/lib/ai-assistant';
+import { fetchAssistantQuota } from '@/lib/ai-quota';
 
 function StatusBadge({ status }) {
   const styles = {
@@ -148,6 +151,12 @@ export default function AiAssistantUploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [deletingId, setDeletingId] = useState(null);
 
+  const quotaQuery = useQuery({
+    queryKey: ['ai-assistant-quota', business?.id],
+    queryFn: () => fetchAssistantQuota(business.id),
+    enabled: !!business?.id,
+  });
+
   const uploadsQuery = useQuery({
     queryKey: ['ai-menu-uploads', business?.id],
     queryFn: () => fetchMenuUploads(business.id),
@@ -164,6 +173,7 @@ export default function AiAssistantUploadPage() {
     onSuccess: async (upload) => {
       setUploadProgress(0);
       await queryClient.invalidateQueries({ queryKey: ['ai-menu-uploads', business.id] });
+      await queryClient.invalidateQueries({ queryKey: ['ai-assistant-quota', business.id] });
       toast.success('Menu envoyé');
       if (upload?.id) {
         navigate(`/dashboard/ai-assistant/menu/${upload.id}`);
@@ -221,6 +231,8 @@ export default function AiAssistantUploadPage() {
   }
 
   const uploads = uploadsQuery.data ?? [];
+  const quota = quotaQuery.data;
+  const canUpload = quota?.assistant_enabled && quota?.upload?.allowed;
 
   return (
     <DashboardLayout
@@ -245,9 +257,11 @@ export default function AiAssistantUploadPage() {
               ou saisissez-le manuellement.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <AiQuotaBanner quota={quota} kind="upload" />
+            <AiActivitySummary businessId={business?.id} />
             <MenuUploadZone
-              disabled={uploadMutation.isPending}
+              disabled={uploadMutation.isPending || !canUpload}
               uploading={uploadMutation.isPending}
               progress={uploadProgress}
               onUpload={(file) => uploadMutation.mutateAsync(file)}

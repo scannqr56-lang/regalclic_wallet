@@ -1,3 +1,6 @@
+import { extractJsonObject } from "./ai-schemas/json-parse.ts";
+import { sanitizeSuggestionText, sanitizeWalletMessage } from "./ai-schemas/sanitize-text.ts";
+
 export type NotificationSuggestion = {
   title: string;
   body: string;
@@ -57,8 +60,8 @@ function normalizeNotification(
   if (!raw || typeof raw !== "object") return null;
   const item = raw as Record<string, unknown>;
 
-  const body = truncate(asString(item.body), BODY_MAX);
-  const title = truncate(asString(item.title, body.slice(0, TITLE_MAX)), TITLE_MAX);
+  const body = truncate(sanitizeWalletMessage(item.body, BODY_MAX), BODY_MAX);
+  const title = truncate(sanitizeWalletMessage(item.title || body, TITLE_MAX), TITLE_MAX);
   if (!title || !body) return null;
 
   let notification_type = asString(item.notification_type, "offre");
@@ -84,7 +87,7 @@ function normalizeNotification(
       ? targetRaw as NotificationSuggestion["target_segment"]
       : "all",
     margin_risk: MARGIN_RISKS.has(marginRaw) ? marginRaw as NotificationSuggestion["margin_risk"] : "low",
-    explanation: asString(
+    explanation: sanitizeSuggestionText(
       item.explanation,
       "Notification promo liée à la carte — dépend des règles Apple et Google.",
     ),
@@ -95,14 +98,7 @@ export function parseNotificationsGenerationResponse(
   content: string,
   programType: "points" | "stamps",
 ): NotificationsGenerationResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Réponse IA non JSON");
-    parsed = JSON.parse(match[0]);
-  }
+  const parsed = extractJsonObject(content);
 
   if (!parsed || typeof parsed !== "object") {
     throw new Error("Réponse IA invalide");

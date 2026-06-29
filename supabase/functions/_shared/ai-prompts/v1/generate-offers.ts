@@ -1,3 +1,4 @@
+import { prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
 import { AI_SYSTEM_RULES } from "./system.ts";
 
 export const GENERATE_OFFERS_SYSTEM_PROMPT = `${AI_SYSTEM_RULES}
@@ -54,10 +55,10 @@ Programme fidélité :
 - libellé récompense : ${input.loyaltyProgram.reward_label || "Récompense"}
 
 Profil restaurateur :
-${JSON.stringify(input.profile, null, 2)}
+${JSON.stringify(stripPiiFromProfile(input.profile as Record<string, unknown>), null, 2)}
 
 Menu extrait :
-${JSON.stringify(input.menuJson, null, 2)}
+${JSON.stringify(prepareMenuJsonForPrompt(input.menuJson), null, 2)}
 
 Propose des offres concrètes, prêtes à être transformées en brouillon campagne Wallet (titre, message, libellé court).`;
 }

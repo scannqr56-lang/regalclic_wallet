@@ -4,8 +4,8 @@ import {
   generateNotificationSuggestions,
   generateOfferSuggestions,
   generateRewardSuggestions,
-  getGenerationQuotaForBusiness,
 } from "../_shared/ai-generate-suggestions-core.ts";
+import { getAssistantQuotaSummary } from "../_shared/ai-quota-core.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
   try {
     if (action === "quota_status") {
-      const quota = await getGenerationQuotaForBusiness(admin, businessId);
+      const quota = await getAssistantQuotaSummary(admin, businessId);
       return jsonResponse({ ok: true, quota });
     }
 

@@ -1,3 +1,4 @@
+import { prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
 import { AI_SYSTEM_RULES } from "./system.ts";
 
 export const GENERATE_CALENDAR_SYSTEM_PROMPT = `${AI_SYSTEM_RULES}
@@ -45,10 +46,10 @@ Programme fidélité : ${programType}
 Ton souhaité : ${input.profile.tone_of_voice || "chaleureux"}
 
 Profil :
-${JSON.stringify(input.profile, null, 2)}
+${JSON.stringify(stripPiiFromProfile(input.profile as Record<string, unknown>), null, 2)}
 
 Menu :
-${JSON.stringify(input.menuJson, null, 2)}
+${JSON.stringify(prepareMenuJsonForPrompt(input.menuJson), null, 2)}
 
 Répartis les actions sur les 30 jours (scheduled_date du ${input.startDate} inclus, +29 jours).
 Propose des actions réalistes pour ce commerce — offres, rappels, nouveautés, fidélisation.`;

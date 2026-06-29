@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { AI_PROMPT_VERSION } from "./ai-prompts/v1/extract-menu.ts";
+import { AI_PROMPT_VERSION } from "./ai-prompts/v1/generate-plan.ts";
 import {
   buildGenerateCalendarUserPrompt,
   GENERATE_CALENDAR_SYSTEM_PROMPT,
@@ -27,11 +27,13 @@ import {
   type OffersGenerationResult,
 } from "./ai-offers-schema.ts";
 import {
+  assertGenerationAllowed,
   getGenerationQuotaStatus,
-  isAssistantEnabled,
   markStarterTrialUsedIfNeeded,
 } from "./ai-quota-core.ts";
-import { callOpenAiChat, estimateOpenAiCostUsd } from "./ai-openai.ts";
+import { runOpenAiJsonWithRetry } from "./ai-openai-json.ts";
+import { toUserGenerationError } from "./ai-schemas/generation-errors.ts";
+import { createAiUsageLogger } from "./ai-usage-log.ts";
 import {
   parseRewardsGenerationResponse,
   type RewardsGenerationResult,
@@ -155,30 +157,17 @@ function suggestionsFromRewards(
   return [...rewardRows, ...thresholdRows];
 }
 
-async function runOpenAiJsonGeneration(
-  systemPrompt: string,
-  userPrompt: string,
-): Promise<{ content: string; model: string; usage: { prompt_tokens: number; completion_tokens: number } }> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const result = await callOpenAiChat({
-        model: SUGGESTIONS_MODEL,
-        jsonMode: true,
-        timeoutMs: 120_000,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      });
-      return result;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-    }
-  }
-
-  throw lastError ?? new Error("Génération impossible");
+async function failGenerationBatch(
+  admin: SupabaseClient,
+  batchId: string,
+  error: unknown,
+): Promise<never> {
+  const message = toUserGenerationError(error);
+  await admin
+    .from("ai_suggestion_batches")
+    .update({ status: "failed", error_message: message })
+    .eq("id", batchId);
+  throw new Error(message);
 }
 
 async function persistGenerationBatch<T>(params: {
@@ -190,8 +179,6 @@ async function persistGenerationBatch<T>(params: {
   generated: T;
   suggestionRows: Record<string, unknown>[];
   modelUsed: string;
-  usage: { prompt_tokens: number; completion_tokens: number };
-  started: number;
 }) {
   const { data: insertedSuggestions, error: insertError } = await params.admin
     .from("ai_suggestions")
@@ -214,18 +201,6 @@ async function persistGenerationBatch<T>(params: {
 
   if (updateError) throw new Error(updateError.message);
 
-  await params.admin.from("ai_usage_logs").insert({
-    business_id: params.businessId,
-    user_id: params.userId,
-    action: "generate_batch",
-    batch_id: params.batchId,
-    tokens_input: params.usage.prompt_tokens,
-    tokens_output: params.usage.completion_tokens,
-    cost_estimate: estimateOpenAiCostUsd(params.modelUsed, params.usage),
-    model_used: params.modelUsed,
-    duration_ms: Date.now() - params.started,
-  });
-
   await markStarterTrialUsedIfNeeded(params.admin, params.businessId, params.quotaPlan);
 
   return {
@@ -244,8 +219,6 @@ async function persistCalendarGenerationBatch(params: {
   generated: CalendarGenerationResult;
   calendarRows: Record<string, unknown>[];
   modelUsed: string;
-  usage: { prompt_tokens: number; completion_tokens: number };
-  started: number;
 }) {
   const { data: insertedItems, error: insertError } = await params.admin
     .from("ai_marketing_calendar_items")
@@ -267,18 +240,6 @@ async function persistCalendarGenerationBatch(params: {
     .single();
 
   if (updateError) throw new Error(updateError.message);
-
-  await params.admin.from("ai_usage_logs").insert({
-    business_id: params.businessId,
-    user_id: params.userId,
-    action: "generate_batch",
-    batch_id: params.batchId,
-    tokens_input: params.usage.prompt_tokens,
-    tokens_output: params.usage.completion_tokens,
-    cost_estimate: estimateOpenAiCostUsd(params.modelUsed, params.usage),
-    model_used: params.modelUsed,
-    duration_ms: Date.now() - params.started,
-  });
 
   await markStarterTrialUsedIfNeeded(params.admin, params.businessId, params.quotaPlan);
 
@@ -326,6 +287,20 @@ async function createProcessingBatch(
   return batch;
 }
 
+function createBatchUsageLogger(
+  admin: SupabaseClient,
+  businessId: string,
+  userId: string,
+  batchId: string,
+) {
+  return createAiUsageLogger(admin, {
+    business_id: businessId,
+    user_id: userId,
+    action: "generate_batch",
+    batch_id: batchId,
+  });
+}
+
 export async function generateRewardSuggestions(
   admin: SupabaseClient,
   userClient: SupabaseClient,
@@ -333,14 +308,7 @@ export async function generateRewardSuggestions(
   userId: string,
   menuUploadId?: string,
 ) {
-  if (!isAssistantEnabled()) {
-    throw new Error("Assistant IA temporairement indisponible");
-  }
-
-  const quota = await getGenerationQuotaStatus(admin, businessId);
-  if (!quota.allowed) {
-    throw new Error(quota.reason || "Quota de génération atteint");
-  }
+  const quota = await assertGenerationAllowed(admin, businessId);
 
   const context = await loadGenerationContext(userClient, businessId, menuUploadId);
   const programType = context.loyaltyProgram.type === "stamps" ? "stamps" : "points";
@@ -351,19 +319,20 @@ export async function generateRewardSuggestions(
     context,
   });
 
-  const started = Date.now();
-
   try {
-    const aiResult = await runOpenAiJsonGeneration(
-      GENERATE_REWARDS_SYSTEM_PROMPT,
-      buildGenerateRewardsUserPrompt({
+    const aiResult = await runOpenAiJsonWithRetry({
+      model: SUGGESTIONS_MODEL,
+      systemPrompt: GENERATE_REWARDS_SYSTEM_PROMPT,
+      userPrompt: buildGenerateRewardsUserPrompt({
         menuJson: context.menuUpload.extracted_json,
         profile: profileInputToRow(businessId, context.profile),
         loyaltyProgram: context.loyaltyProgram,
       }),
-    );
+      parse: (content) => parseRewardsGenerationResponse(content, programType),
+      onProviderCall: createBatchUsageLogger(admin, businessId, userId, batch.id),
+    });
 
-    const generated = parseRewardsGenerationResponse(aiResult.content, programType);
+    const generated = aiResult.parsed;
     const suggestionRows = suggestionsFromRewards(businessId, batch.id, programType, generated);
 
     return await persistGenerationBatch({
@@ -375,16 +344,9 @@ export async function generateRewardSuggestions(
       generated,
       suggestionRows,
       modelUsed: aiResult.model,
-      usage: aiResult.usage,
-      started,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Génération échouée";
-    await admin
-      .from("ai_suggestion_batches")
-      .update({ status: "failed", error_message: message })
-      .eq("id", batch.id);
-    throw new Error(message);
+    return await failGenerationBatch(admin, batch.id, error);
   }
 }
 
@@ -395,14 +357,7 @@ export async function generateOfferSuggestions(
   userId: string,
   menuUploadId?: string,
 ) {
-  if (!isAssistantEnabled()) {
-    throw new Error("Assistant IA temporairement indisponible");
-  }
-
-  const quota = await getGenerationQuotaStatus(admin, businessId);
-  if (!quota.allowed) {
-    throw new Error(quota.reason || "Quota de génération atteint");
-  }
+  const quota = await assertGenerationAllowed(admin, businessId);
 
   const context = await loadGenerationContext(userClient, businessId, menuUploadId);
   const programType = context.loyaltyProgram.type === "stamps" ? "stamps" : "points";
@@ -413,19 +368,20 @@ export async function generateOfferSuggestions(
     context,
   });
 
-  const started = Date.now();
-
   try {
-    const aiResult = await runOpenAiJsonGeneration(
-      GENERATE_OFFERS_SYSTEM_PROMPT,
-      buildGenerateOffersUserPrompt({
+    const aiResult = await runOpenAiJsonWithRetry({
+      model: SUGGESTIONS_MODEL,
+      systemPrompt: GENERATE_OFFERS_SYSTEM_PROMPT,
+      userPrompt: buildGenerateOffersUserPrompt({
         menuJson: context.menuUpload.extracted_json,
         profile: profileInputToRow(businessId, context.profile),
         loyaltyProgram: context.loyaltyProgram,
       }),
-    );
+      parse: (content) => parseOffersGenerationResponse(content, programType),
+      onProviderCall: createBatchUsageLogger(admin, businessId, userId, batch.id),
+    });
 
-    const generated = parseOffersGenerationResponse(aiResult.content, programType);
+    const generated = aiResult.parsed;
     const suggestionRows = suggestionsFromOffers(businessId, batch.id, generated);
 
     return await persistGenerationBatch({
@@ -437,16 +393,9 @@ export async function generateOfferSuggestions(
       generated,
       suggestionRows,
       modelUsed: aiResult.model,
-      usage: aiResult.usage,
-      started,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Génération échouée";
-    await admin
-      .from("ai_suggestion_batches")
-      .update({ status: "failed", error_message: message })
-      .eq("id", batch.id);
-    throw new Error(message);
+    return await failGenerationBatch(admin, batch.id, error);
   }
 }
 
@@ -457,14 +406,7 @@ export async function generateNotificationSuggestions(
   userId: string,
   menuUploadId?: string,
 ) {
-  if (!isAssistantEnabled()) {
-    throw new Error("Assistant IA temporairement indisponible");
-  }
-
-  const quota = await getGenerationQuotaStatus(admin, businessId);
-  if (!quota.allowed) {
-    throw new Error(quota.reason || "Quota de génération atteint");
-  }
+  const quota = await assertGenerationAllowed(admin, businessId);
 
   const context = await loadGenerationContext(userClient, businessId, menuUploadId);
   const programType = context.loyaltyProgram.type === "stamps" ? "stamps" : "points";
@@ -475,19 +417,20 @@ export async function generateNotificationSuggestions(
     context,
   });
 
-  const started = Date.now();
-
   try {
-    const aiResult = await runOpenAiJsonGeneration(
-      GENERATE_NOTIFICATIONS_SYSTEM_PROMPT,
-      buildGenerateNotificationsUserPrompt({
+    const aiResult = await runOpenAiJsonWithRetry({
+      model: SUGGESTIONS_MODEL,
+      systemPrompt: GENERATE_NOTIFICATIONS_SYSTEM_PROMPT,
+      userPrompt: buildGenerateNotificationsUserPrompt({
         menuJson: context.menuUpload.extracted_json,
         profile: profileInputToRow(businessId, context.profile),
         loyaltyProgram: context.loyaltyProgram,
       }),
-    );
+      parse: (content) => parseNotificationsGenerationResponse(content, programType),
+      onProviderCall: createBatchUsageLogger(admin, businessId, userId, batch.id),
+    });
 
-    const generated = parseNotificationsGenerationResponse(aiResult.content, programType);
+    const generated = aiResult.parsed;
     const suggestionRows = suggestionsFromNotifications(businessId, batch.id, generated);
 
     return await persistGenerationBatch({
@@ -499,16 +442,9 @@ export async function generateNotificationSuggestions(
       generated,
       suggestionRows,
       modelUsed: aiResult.model,
-      usage: aiResult.usage,
-      started,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Génération échouée";
-    await admin
-      .from("ai_suggestion_batches")
-      .update({ status: "failed", error_message: message })
-      .eq("id", batch.id);
-    throw new Error(message);
+    return await failGenerationBatch(admin, batch.id, error);
   }
 }
 
@@ -519,14 +455,7 @@ export async function generateCalendarSuggestions(
   userId: string,
   menuUploadId?: string,
 ) {
-  if (!isAssistantEnabled()) {
-    throw new Error("Assistant IA temporairement indisponible");
-  }
-
-  const quota = await getGenerationQuotaStatus(admin, businessId);
-  if (!quota.allowed) {
-    throw new Error(quota.reason || "Quota de génération atteint");
-  }
+  const quota = await assertGenerationAllowed(admin, businessId);
 
   const context = await loadGenerationContext(userClient, businessId, menuUploadId);
   const programType = context.loyaltyProgram.type === "stamps" ? "stamps" : "points";
@@ -538,20 +467,21 @@ export async function generateCalendarSuggestions(
     context,
   });
 
-  const started = Date.now();
-
   try {
-    const aiResult = await runOpenAiJsonGeneration(
-      GENERATE_CALENDAR_SYSTEM_PROMPT,
-      buildGenerateCalendarUserPrompt({
+    const aiResult = await runOpenAiJsonWithRetry({
+      model: SUGGESTIONS_MODEL,
+      systemPrompt: GENERATE_CALENDAR_SYSTEM_PROMPT,
+      userPrompt: buildGenerateCalendarUserPrompt({
         menuJson: context.menuUpload.extracted_json,
         profile: profileInputToRow(businessId, context.profile),
         loyaltyProgram: context.loyaltyProgram,
         startDate,
       }),
-    );
+      parse: (content) => parseCalendarGenerationResponse(content, startDate, programType),
+      onProviderCall: createBatchUsageLogger(admin, businessId, userId, batch.id),
+    });
 
-    const generated = parseCalendarGenerationResponse(aiResult.content, startDate, programType);
+    const generated = aiResult.parsed;
     const calendarRows = calendarRowsFromGeneration(businessId, batch.id, generated);
 
     return await persistCalendarGenerationBatch({
@@ -563,16 +493,9 @@ export async function generateCalendarSuggestions(
       generated,
       calendarRows,
       modelUsed: aiResult.model,
-      usage: aiResult.usage,
-      started,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Génération échouée";
-    await admin
-      .from("ai_suggestion_batches")
-      .update({ status: "failed", error_message: message })
-      .eq("id", batch.id);
-    throw new Error(message);
+    return await failGenerationBatch(admin, batch.id, error);
   }
 }
 

@@ -72,3 +72,7 @@ export function enableMerchantAccount(userId) {
 export function deleteMerchantAccount(userId) {
   return invokeAdminMerchants('delete', { user_id: userId });
 }
+
+export function fetchAdminAiUsageSummary() {
+  return invokeAdminMerchants('ai_usage_summary').then((data) => data.summary);
+}

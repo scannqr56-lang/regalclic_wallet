@@ -1,3 +1,4 @@
+import { prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
 import { AI_SYSTEM_RULES } from "./system.ts";
 
 export const GENERATE_NOTIFICATIONS_SYSTEM_PROMPT = `${AI_SYSTEM_RULES}
@@ -50,10 +51,10 @@ Programme fidélité : ${programType}
 Ton souhaité : ${input.profile.tone_of_voice || "chaleureux"}
 
 Profil :
-${JSON.stringify(input.profile, null, 2)}
+${JSON.stringify(stripPiiFromProfile(input.profile as Record<string, unknown>), null, 2)}
 
 Menu :
-${JSON.stringify(input.menuJson, null, 2)}
+${JSON.stringify(prepareMenuJsonForPrompt(input.menuJson), null, 2)}
 
 Les messages doivent être prêts à alimenter une campagne Wallet (message + libellé court).`;
 }

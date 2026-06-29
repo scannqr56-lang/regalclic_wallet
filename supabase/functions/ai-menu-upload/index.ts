@@ -6,6 +6,8 @@ import {
   buildMenuStoragePath,
   isAllowedMenuMimeType,
 } from "../_shared/ai-menu-constants.ts";
+import { assertUploadAllowed } from "../_shared/ai-quota-core.ts";
+import { logAiUsage } from "../_shared/ai-usage-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -112,11 +114,18 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Accès refusé à ce commerce" }, 403);
   }
 
+  const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+  try {
+    await assertUploadAllowed(admin, businessId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Quota d'upload atteint";
+    return jsonResponse({ error: message }, 403);
+  }
+
   const uploadId = crypto.randomUUID();
   const storagePath = buildMenuStoragePath(businessId, uploadId, mimeType);
   const fileBuffer = await fileEntry.arrayBuffer();
-
-  const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
   const { error: storageError } = await admin.storage
     .from(AI_MENU_BUCKET)
@@ -152,6 +161,17 @@ Deno.serve(async (req) => {
       error: insertError.message || "Enregistrement impossible",
     }, 500);
   }
+
+  await logAiUsage(admin, {
+    business_id: businessId,
+    user_id: user.id,
+    action: "upload_menu",
+    batch_id: null,
+    tokens_input: 0,
+    tokens_output: 0,
+    model_used: "n/a",
+    duration_ms: 0,
+  });
 
   return jsonResponse({ ok: true, upload: row });
 });

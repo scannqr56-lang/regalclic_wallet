@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, AlertTriangle } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import SuggestionCard from '@/components/ai-assistant/SuggestionCard';
+import AiQuotaBanner from '@/components/ai-assistant/AiQuotaBanner';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  fetchGenerationQuota,
   fetchSuggestionBatches,
   fetchSuggestions,
   generateRewardSuggestions,
   updateSuggestionStatus,
 } from '@/lib/ai-suggestions';
+import { fetchAssistantQuota } from '@/lib/ai-quota';
 import { fetchMenuUploads } from '@/lib/ai-assistant';
 import { fetchRestaurantProfile } from '@/lib/ai-restaurant-profile';
 
@@ -26,8 +27,8 @@ export default function AiAssistantRewardsPage() {
   const [actionId, setActionId] = useState(null);
 
   const quotaQuery = useQuery({
-    queryKey: ['ai-generation-quota', business?.id],
-    queryFn: () => fetchGenerationQuota(business.id),
+    queryKey: ['ai-assistant-quota', business?.id],
+    queryFn: () => fetchAssistantQuota(business.id),
     enabled: !!business?.id,
   });
 
@@ -76,7 +77,7 @@ export default function AiAssistantRewardsPage() {
       if (result.batch?.id) setActiveBatchId(result.batch.id);
       await queryClient.invalidateQueries({ queryKey: ['ai-reward-suggestions', business.id] });
       await queryClient.invalidateQueries({ queryKey: ['ai-all-suggestions', business.id] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-generation-quota', business.id] });
+      await queryClient.invalidateQueries({ queryKey: ['ai-assistant-quota', business.id] });
       toast.success('Récompenses générées — validez-les dans le hub');
     },
     onError: (error) => {
@@ -125,6 +126,7 @@ export default function AiAssistantRewardsPage() {
   const hasProgram = Boolean(loyaltyProgram);
   const canGenerate = extractedMenus.length > 0 && hasProfile && hasProgram;
   const quota = quotaQuery.data;
+  const generationAllowed = quota?.assistant_enabled && quota?.generation?.allowed;
   const suggestions = suggestionsQuery.data ?? [];
   const rewards = suggestions.filter((s) => s.suggestion_type === 'reward');
   const thresholds = suggestions.filter((s) => s.suggestion_type === 'threshold');
@@ -193,23 +195,11 @@ export default function AiAssistantRewardsPage() {
               </div>
             ) : null}
 
-            {quota && !quota.allowed ? (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <p>{quota.reason}</p>
-              </div>
-            ) : null}
-
-            {quota?.allowed ? (
-              <p className="text-xs text-slate-500">
-                Quota : {quota.monthly_used} / {quota.monthly_limit} génération(s) ce mois-ci
-                {quota.trial_available ? ' · essai gratuit disponible' : ''}
-              </p>
-            ) : null}
+            <AiQuotaBanner quota={quota} kind="generation" />
 
             <Button
               type="button"
-              disabled={!canGenerate || !quota?.allowed || generateMutation.isPending}
+              disabled={!canGenerate || !generationAllowed || generateMutation.isPending}
               onClick={() => generateMutation.mutate()}
             >
               {generateMutation.isPending ? (

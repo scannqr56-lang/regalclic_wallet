@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { buildAiUsageSummary } from "../_shared/ai-usage-summary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,7 +66,7 @@ async function listMerchants(admin: ReturnType<typeof createClient>) {
     const { data: businesses, error: businessError } = await admin
       .from("businesses")
       .select(
-        "id, owner_id, name, slug, city, phone, is_active, plan, created_at, updated_at",
+        "id, owner_id, name, slug, city, phone, is_active, plan, ai_trial_used, created_at, updated_at",
       )
       .in("owner_id", userIds);
 
@@ -124,6 +125,11 @@ Deno.serve(async (req) => {
     if (action === "list") {
       const merchants = await listMerchants(admin);
       return jsonResponse({ ok: true, merchants });
+    }
+
+    if (action === "ai_usage_summary") {
+      const summary = await buildAiUsageSummary(admin);
+      return jsonResponse({ ok: true, summary });
     }
 
     if (action === "create") {
@@ -223,6 +229,7 @@ Deno.serve(async (req) => {
           "website",
           "is_active",
           "plan",
+          "ai_trial_used",
         ];
         for (const key of allowed) {
           if (business[key] !== undefined) businessPatch[key] = business[key];

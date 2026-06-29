@@ -95,6 +95,11 @@ async function invokeGenerateSuggestions(action, payload = {}) {
 
 export function fetchGenerationQuota(businessId) {
   return invokeGenerateSuggestions('quota_status', { business_id: businessId })
+    .then((data) => data.quota?.generation ?? data.quota);
+}
+
+export function fetchAssistantQuota(businessId) {
+  return invokeGenerateSuggestions('quota_status', { business_id: businessId })
     .then((data) => data.quota);
 }
 

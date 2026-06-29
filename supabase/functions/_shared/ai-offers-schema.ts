@@ -1,3 +1,6 @@
+import { extractJsonObject } from "./ai-schemas/json-parse.ts";
+import { sanitizeSuggestionText, sanitizeWalletMessage } from "./ai-schemas/sanitize-text.ts";
+
 export type OfferSuggestion = {
   title: string;
   offer_label: string;
@@ -45,7 +48,7 @@ function normalizeOffer(raw: unknown, programType: "points" | "stamps"): OfferSu
   const item = raw as Record<string, unknown>;
 
   const title = asString(item.title);
-  const customer_message = asString(item.customer_message);
+  const customer_message = sanitizeWalletMessage(item.customer_message, 120);
   if (!title || !customer_message) return null;
 
   let objective = asString(item.objective, "heures_creuses");
@@ -69,7 +72,7 @@ function normalizeOffer(raw: unknown, programType: "points" | "stamps"): OfferSu
       : "all",
     margin_risk: MARGIN_RISKS.has(marginRaw) ? marginRaw as OfferSuggestion["margin_risk"] : "medium",
     generosity_level: asString(item.generosity_level, "balanced"),
-    explanation: asString(
+    explanation: sanitizeSuggestionText(
       item.explanation,
       "À valider selon vos marges avant activation sur la carte Wallet.",
     ),
@@ -80,14 +83,7 @@ export function parseOffersGenerationResponse(
   content: string,
   programType: "points" | "stamps",
 ): OffersGenerationResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Réponse IA non JSON");
-    parsed = JSON.parse(match[0]);
-  }
+  const parsed = extractJsonObject(content);
 
   if (!parsed || typeof parsed !== "object") {
     throw new Error("Réponse IA invalide");
