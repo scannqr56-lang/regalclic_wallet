@@ -52,7 +52,7 @@ export function useSuggestionActions({ businessId, loyaltyProgram, reward }) {
 
       throw new Error('Type de suggestion non pris en charge');
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       invalidateSuggestions();
       queryClient.invalidateQueries({ queryKey: ['campaign-ai-origins', businessId] });
       setModalOpen(false);
@@ -68,14 +68,13 @@ export function useSuggestionActions({ businessId, loyaltyProgram, reward }) {
           },
         });
       } else if (result.redirectPath === '/dashboard/program') {
-        queryClient.invalidateQueries({ queryKey: ['reward', businessId] });
-        queryClient.invalidateQueries({ queryKey: ['my-business'] });
-        toast.success('Récompense ajoutée à votre programme', {
-          action: {
-            label: 'Voir le programme',
-            onClick: () => navigate('/dashboard/program'),
-          },
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['reward', businessId] }),
+          queryClient.invalidateQueries({ queryKey: ['my-business'] }),
+          queryClient.invalidateQueries({ queryKey: ['onboarding-progress', businessId] }),
+        ]);
+        toast.success('Programme ajouté avec succès.');
+        navigate('/dashboard/program');
       } else if (result.redirectPath) {
         toast.success('Idée appliquée');
         navigate(result.redirectPath);
