@@ -35,7 +35,6 @@ function StampCardBody({ model }) {
     <div className="space-y-4">
       <StampTicketGrid
         slots={model.stampSlots}
-        columns={model.stampColumns}
         balance={model.balance}
         total={model.stampsRequired}
         rewardLabel={model.rewardLabel}

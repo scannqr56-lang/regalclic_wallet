@@ -7,9 +7,7 @@ export function resolveStampsRequired(program) {
 }
 
 export function resolveStampGridColumns(total) {
-  if (total <= 5) return total;
-  if (total <= 10) return 5;
-  return Math.ceil(total / 2);
+  return Math.max(Math.floor(total) || 1, 1);
 }
 
 export function buildStampSlots(filled, total) {

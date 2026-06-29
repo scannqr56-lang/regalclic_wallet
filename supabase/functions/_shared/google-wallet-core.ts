@@ -193,6 +193,10 @@ export function buildGoogleObjectBody(vm: WalletCardViewModel, classId: string):
     textModulesData: fields.textModulesData,
   };
 
+  if (fields.imageModulesData.length > 0) {
+    body.imageModulesData = fields.imageModulesData;
+  }
+
   if (linksModuleData) {
     body.linksModuleData = linksModuleData;
   }
@@ -269,6 +273,10 @@ export function buildGoogleSyncPatchBody(
     ...buildGoogleLoyaltyPointsFields(fields),
     textModulesData: fields.textModulesData,
   };
+
+  if (fields.imageModulesData.length > 0) {
+    body.imageModulesData = fields.imageModulesData;
+  }
 
   const plan = notification;
   if (plan?.notifyGoogle && plan.google.notify && plan.google.body) {

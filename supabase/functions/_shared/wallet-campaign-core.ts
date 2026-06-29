@@ -361,6 +361,93 @@ export async function notifyActiveCampaign(
   return { campaign, broadcast };
 }
 
+export type WalletCampaignUpdatePayload = {
+  title: string;
+  message: string;
+  offer_label: string | null;
+  notify_on_activate: boolean;
+  starts_at: string;
+  ends_at: string;
+};
+
+export async function updateWalletCampaign(
+  supabase: SupabaseClient,
+  campaignId: string,
+  payload: WalletCampaignUpdatePayload,
+  googleToken?: string | null,
+): Promise<{ campaign: WalletCampaignRow; broadcast?: CampaignBroadcastSummary }> {
+  const campaign = await loadCampaign(supabase, campaignId);
+  if (!campaign) throw new Error("Campagne introuvable");
+  if (campaign.status === "ended") {
+    throw new Error("Les campagnes terminées ne peuvent plus être modifiées");
+  }
+
+  const startsAt = new Date(payload.starts_at);
+  const endsAt = new Date(payload.ends_at);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+    throw new Error("Dates invalides");
+  }
+  if (endsAt <= startsAt) throw new Error("La date de fin doit être après la date de début");
+  if (campaign.status === "active" && endsAt <= new Date()) {
+    throw new Error("La date de fin doit être dans le futur pour une campagne active");
+  }
+
+  const { data: updated, error } = await supabase
+    .from("wallet_campaigns")
+    .update({
+      title: payload.title,
+      message: payload.message,
+      offer_label: payload.offer_label,
+      notify_on_activate: payload.notify_on_activate,
+      starts_at: payload.starts_at,
+      ends_at: payload.ends_at,
+    })
+    .eq("id", campaignId)
+    .select("*")
+    .single();
+
+  if (error || !updated) throw error || new Error("Mise à jour impossible");
+
+  const updatedCampaign = updated as WalletCampaignRow;
+
+  if (updatedCampaign.status === "active") {
+    await syncBusinessPromoMessage(supabase, updatedCampaign.business_id, updatedCampaign.message);
+    const broadcast = await broadcastCampaignToMemberships(
+      supabase,
+      updatedCampaign,
+      googleToken,
+      { notify: false },
+    );
+    return { campaign: updatedCampaign, broadcast };
+  }
+
+  return { campaign: updatedCampaign };
+}
+
+export async function deleteWalletCampaign(
+  supabase: SupabaseClient,
+  campaignId: string,
+  googleToken?: string | null,
+): Promise<{ broadcast?: CampaignBroadcastSummary }> {
+  const campaign = await loadCampaign(supabase, campaignId);
+  if (!campaign) throw new Error("Campagne introuvable");
+
+  let broadcast: CampaignBroadcastSummary | undefined;
+
+  if (campaign.status === "active") {
+    const ended = await endWalletCampaign(supabase, campaignId, googleToken);
+    broadcast = ended.broadcast;
+  }
+
+  const { error } = await supabase
+    .from("wallet_campaigns")
+    .delete()
+    .eq("id", campaignId);
+
+  if (error) throw error;
+  return { broadcast };
+}
+
 export async function endWalletCampaign(
   supabase: SupabaseClient,
   campaignId: string,

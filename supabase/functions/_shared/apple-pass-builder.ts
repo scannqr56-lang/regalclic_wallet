@@ -14,6 +14,7 @@ import {
   type WalletCardDbInput,
   type WalletCardViewModel,
 } from "./wallet-card-model.ts";
+import { generateStampStripPng } from "./stamp-strip-generator.ts";
 import {
   applyAppleNotificationHints,
   type AppleNotificationHints,
@@ -100,6 +101,7 @@ type PassImages = {
 async function resolvePassImages(
   businessLogoUrl?: string | null,
   heroUrl?: string | null,
+  viewModel?: WalletCardViewModel | null,
 ): Promise<PassImages> {
   const fallbackIcon1x = base64ToBytes(ICON_1X_B64);
   const fallbackIcon2x = base64ToBytes(ICON_2X_B64);
@@ -113,12 +115,31 @@ async function resolvePassImages(
 
   let strip1x: Uint8Array | undefined;
   let strip2x: Uint8Array | undefined;
-  const heroCandidate = heroUrl?.trim() || (Deno.env.get("REGALCLIC_WALLET_STRIP_URL") || "").trim();
-  if (heroCandidate.startsWith("https://")) {
-    const stripBytes = await fetchImageBytes(heroCandidate);
-    if (stripBytes) {
-      strip1x = stripBytes;
-      strip2x = stripBytes;
+
+  if (viewModel?.programType === "stamps" && viewModel.stampsRequired) {
+    try {
+      strip2x = await generateStampStripPng({
+        filled: viewModel.balance,
+        total: viewModel.stampsRequired,
+        backgroundHex: viewModel.primaryColorHex,
+        foregroundHex: viewModel.labelColorHex,
+        width: 750,
+        height: 112,
+      });
+      strip1x = strip2x;
+    } catch (error) {
+      console.error("[apple-pass] stamp strip generation failed", error);
+    }
+  }
+
+  if (!strip1x || !strip2x) {
+    const heroCandidate = heroUrl?.trim() || (Deno.env.get("REGALCLIC_WALLET_STRIP_URL") || "").trim();
+    if (heroCandidate.startsWith("https://")) {
+      const stripBytes = await fetchImageBytes(heroCandidate);
+      if (stripBytes) {
+        strip1x = stripBytes;
+        strip2x = stripBytes;
+      }
     }
   }
 
@@ -254,7 +275,7 @@ export async function buildApplePkpass(input: ApplePassBuildInput): Promise<Uint
     altText: vm.cardNumber,
   };
 
-  const images = await resolvePassImages(vm.logoUrl, vm.heroUrl);
+  const images = await resolvePassImages(vm.logoUrl, vm.heroUrl, vm);
   const backgroundColor = resolvePrimaryRgb(vm.primaryColorHex);
   const labelColor = resolveLabelRgb(vm.labelColorHex);
 

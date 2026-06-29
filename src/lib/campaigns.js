@@ -152,19 +152,36 @@ export async function createCampaign(businessId, form) {
   return data;
 }
 
-export async function updateCampaign(campaignId, form) {
+export async function updateCampaign(campaignId, form, { status } = {}) {
   const validationError = validateCampaignForm(form);
   if (validationError) throw new Error(validationError);
+
+  const payload = {
+    title: form.title.trim(),
+    message: form.message.trim(),
+    offer_label: form.offer_label.trim() || '',
+    notify_on_activate: Boolean(form.notify_on_activate),
+    starts_at: fromLocalDatetimeValue(form.starts_at),
+    ends_at: fromLocalDatetimeValue(form.ends_at),
+  };
+
+  if (status === 'active') {
+    const data = await invokeCampaignAction('update', {
+      campaign_id: campaignId,
+      ...payload,
+    });
+    return data.campaign;
+  }
 
   const { data, error } = await supabase
     .from('wallet_campaigns')
     .update({
-      title: form.title.trim(),
-      message: form.message.trim(),
-      offer_label: form.offer_label.trim() || null,
-      notify_on_activate: Boolean(form.notify_on_activate),
-      starts_at: fromLocalDatetimeValue(form.starts_at),
-      ends_at: fromLocalDatetimeValue(form.ends_at),
+      title: payload.title,
+      message: payload.message,
+      offer_label: payload.offer_label || null,
+      notify_on_activate: payload.notify_on_activate,
+      starts_at: payload.starts_at,
+      ends_at: payload.ends_at,
     })
     .eq('id', campaignId)
     .eq('status', 'draft')
@@ -176,14 +193,19 @@ export async function updateCampaign(campaignId, form) {
   return data;
 }
 
-export async function deleteCampaign(campaignId) {
-  const { error } = await supabase
-    .from('wallet_campaigns')
-    .delete()
-    .eq('id', campaignId)
-    .eq('status', 'draft');
+export async function deleteCampaign(campaignId, { status } = {}) {
+  if (status === 'draft') {
+    const { error } = await supabase
+      .from('wallet_campaigns')
+      .delete()
+      .eq('id', campaignId)
+      .eq('status', 'draft');
 
-  if (error) throw error;
+    if (error) throw error;
+    return;
+  }
+
+  return invokeCampaignAction('delete', { campaign_id: campaignId });
 }
 
 async function invokeCampaignAction(action, payload = {}) {

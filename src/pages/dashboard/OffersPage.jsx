@@ -216,18 +216,30 @@ export default function OffersPage() {
     }
   };
 
+  const editingCampaign = editingId ? campaigns.find((c) => c.id === editingId) : null;
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!business?.id) throw new Error('Commerce requis');
-      if (editingId) return updateCampaign(editingId, form);
-      return createCampaign(business.id, form);
+      if (editingId) {
+        await updateCampaign(editingId, form, { status: editingCampaign?.status });
+        return { kind: editingCampaign?.status === 'active' ? 'active_update' : 'draft_update' };
+      }
+      await createCampaign(business.id, form);
+      return { kind: 'create' };
     },
-    onSuccess: () => {
+    onSuccess: ({ kind }) => {
       invalidate();
       setMode('list');
       setEditingId(null);
       setForm(buildCampaignFormDefaults());
-      toast.success(editingId ? 'Campagne mise à jour' : 'Brouillon créé');
+      if (kind === 'active_update') {
+        toast.success('Offre mise à jour — cartes Wallet synchronisées');
+      } else if (kind === 'draft_update') {
+        toast.success('Campagne mise à jour');
+      } else {
+        toast.success('Brouillon créé');
+      }
     },
     onError: (error) => toast.error(error?.message || 'Erreur'),
   });
@@ -269,13 +281,36 @@ export default function OffersPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteCampaign,
-    onSuccess: () => {
+    mutationFn: ({ campaignId, status }) => deleteCampaign(campaignId, { status }),
+    onSuccess: (data, { status }) => {
       invalidate();
-      toast.success('Brouillon supprimé');
+      if (status === 'active') {
+        toast.success(data?.message || 'Offre supprimée — cartes Wallet mises à jour');
+      } else if (status === 'ended') {
+        toast.success('Campagne retirée de l’historique');
+      } else {
+        toast.success('Brouillon supprimé');
+      }
     },
     onError: (error) => toast.error(error?.message || 'Suppression impossible'),
   });
+
+  const startEdit = (campaign) => {
+    setEditingId(campaign.id);
+    setMode('edit');
+    setForm(buildCampaignFormDefaults(campaign));
+  };
+
+  const confirmDelete = (campaign) => {
+    const labels = {
+      active: 'Supprimer cette offre en cours ?\n\nL’offre sera retirée de toutes les cartes Wallet.',
+      ended: 'Retirer cette campagne de l’historique ?',
+      draft: 'Supprimer ce brouillon ?',
+    };
+    const message = labels[campaign.status] || labels.draft;
+    if (!window.confirm(message)) return;
+    deleteMutation.mutate({ campaignId: campaign.id, status: campaign.status });
+  };
 
   const actionLoading = activateMutation.isPending || endMutation.isPending
     || deleteMutation.isPending || notifyAllMutation.isPending || notifyTestMutation.isPending;
@@ -316,7 +351,7 @@ export default function OffersPage() {
           </CardContent>
         </Card>
 
-        {activeCampaign ? (
+        {activeCampaign && !(mode === 'edit' && editingId === activeCampaign.id) ? (
           <Card className="border-emerald-200 bg-emerald-50/50">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base text-emerald-900">
@@ -336,6 +371,15 @@ export default function OffersPage() {
               ) : null}
               <CampaignStats campaignId={activeCampaign.id} />
               <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={actionLoading}
+                  onClick={() => startEdit(activeCampaign)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Modifier
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -362,6 +406,16 @@ export default function OffersPage() {
                   <Square className="h-4 w-4" />
                 )}
                 Terminer la campagne
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                  disabled={actionLoading}
+                  onClick={() => confirmDelete(activeCampaign)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer
                 </Button>
               </div>
               <div className="flex flex-wrap items-end gap-2 border-t border-emerald-200/60 pt-3">
@@ -402,17 +456,25 @@ export default function OffersPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {mode === 'edit' ? 'Modifier le brouillon' : 'Nouvelle offre'}
+                {mode === 'edit' && editingCampaign?.status === 'active'
+                  ? 'Modifier l’offre en cours'
+                  : (mode === 'edit' ? 'Modifier le brouillon' : 'Nouvelle offre')}
               </CardTitle>
               <CardDescription>
-                Le message apparaît sur les cartes Wallet. La notification push est optionnelle (voir case à cocher).
+                {editingCampaign?.status === 'active'
+                  ? 'Les changements seront appliqués sur toutes les cartes Wallet (sans notification push).'
+                  : 'Le message apparaît sur les cartes Wallet. La notification push est optionnelle (voir case à cocher).'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <CampaignForm
                 form={form}
                 onChange={setForm}
-                submitLabel={mode === 'edit' ? 'Enregistrer' : 'Créer le brouillon'}
+                submitLabel={
+                  mode === 'edit' && editingCampaign?.status === 'active'
+                    ? 'Enregistrer et mettre à jour les cartes'
+                    : (mode === 'edit' ? 'Enregistrer' : 'Créer le brouillon')
+                }
                 loading={saveMutation.isPending}
                 onSubmit={() => saveMutation.mutate()}
                 onCancel={() => {
@@ -479,10 +541,7 @@ export default function OffersPage() {
                               size="sm"
                               variant="outline"
                               disabled={actionLoading}
-                              onClick={() => {
-                                setEditingId(campaign.id);
-                                setMode('edit');
-                              }}
+                              onClick={() => startEdit(campaign)}
                             >
                               <Pencil className="h-4 w-4" />
                               Modifier
@@ -512,20 +571,52 @@ export default function OffersPage() {
                               variant="ghost"
                               className="text-red-600 hover:text-red-700"
                               disabled={actionLoading}
-                              onClick={() => deleteMutation.mutate(campaign.id)}
+                              onClick={() => confirmDelete(campaign)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </>
                         ) : null}
                         {campaign.status === 'active' && campaign.id !== activeCampaign?.id ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={actionLoading}
+                              onClick={() => startEdit(campaign)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Modifier
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={actionLoading}
+                              onClick={() => endMutation.mutate(campaign.id)}
+                            >
+                              Terminer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-600 hover:text-red-700"
+                              disabled={actionLoading}
+                              onClick={() => confirmDelete(campaign)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : null}
+                        {campaign.status === 'ended' ? (
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700"
                             disabled={actionLoading}
-                            onClick={() => endMutation.mutate(campaign.id)}
+                            onClick={() => confirmDelete(campaign)}
                           >
-                            Terminer
+                            <Trash2 className="h-4 w-4" />
+                            Supprimer
                           </Button>
                         ) : null}
                       </div>

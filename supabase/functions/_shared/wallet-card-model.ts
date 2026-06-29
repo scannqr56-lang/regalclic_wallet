@@ -10,6 +10,7 @@ import {
   resolveLabelHex,
   resolvePrimaryHex,
 } from "./wallet-branding.ts";
+import { buildStampStripImageUrl } from "./stamp-strip-generator.ts";
 
 // ---------------------------------------------------------------------------
 // Décisions produit Phase 1
@@ -208,6 +209,7 @@ export type WalletCardViewModel = {
   stampsRequired: number | null;
   stampGridText: string | null;
   stampGridColumns: number | null;
+  stampStripImageUrl: string | null;
 };
 
 export type StampSlot = {
@@ -225,9 +227,11 @@ export function resolveStampsRequired(program: WalletCardProgramInput): number {
 }
 
 export function resolveStampGridColumns(total: number): number {
-  if (total <= 5) return total;
-  if (total <= 10) return 5;
-  return Math.ceil(total / 2);
+  return Math.max(Math.floor(total) || 1, 1);
+}
+
+export function formatStampProgressText(filled: number, total: number): string {
+  return `${Math.max(0, Math.floor(filled))} / ${Math.max(1, Math.floor(total))}`;
 }
 
 export function buildStampSlots(filled: number, total: number): StampSlot[] {
@@ -241,22 +245,16 @@ export function buildStampSlots(filled: number, total: number): StampSlot[] {
 }
 
 function formatStampSlotChar(slot: StampSlot): string {
-  if (slot.isReward) return slot.filled ? "🎁" : "☆";
-  return slot.filled ? "●" : "○";
+  if (slot.isReward) return "🎁";
+  return slot.filled ? "✅" : "⭕";
 }
 
 export function formatStampGridText(
   filled: number,
   total: number,
-  columns?: number,
 ): string {
-  const cols = columns ?? resolveStampGridColumns(total);
   const slots = buildStampSlots(filled, total);
-  const lines: string[] = [];
-  for (let i = 0; i < slots.length; i += cols) {
-    lines.push(slots.slice(i, i + cols).map(formatStampSlotChar).join(" "));
-  }
-  return lines.join("\n");
+  return slots.map(formatStampSlotChar).join("\u2004");
 }
 
 export function resolveApplePassStyle(override?: WalletApplePassStyle): WalletApplePassStyle {
@@ -445,7 +443,17 @@ export function buildWalletCardViewModel(input: WalletCardDbInput): WalletCardVi
   const stampsRequired = programType === "stamps" ? resolveStampsRequired(input.program) : null;
   const stampGridColumns = stampsRequired ? resolveStampGridColumns(stampsRequired) : null;
   const stampGridText = stampsRequired
-    ? formatStampGridText(balance, stampsRequired, stampGridColumns ?? undefined)
+    ? formatStampGridText(balance, stampsRequired)
+    : null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const stampStripImageUrl = stampsRequired
+    ? buildStampStripImageUrl(
+      supabaseUrl,
+      balance,
+      stampsRequired,
+      resolvePrimaryHex(input.business.primary_color),
+      resolveLabelHex(input.business.wallet_label_color),
+    )
     : null;
 
   return {
@@ -503,6 +511,7 @@ export function buildWalletCardViewModel(input: WalletCardDbInput): WalletCardVi
     stampsRequired,
     stampGridText,
     stampGridColumns,
+    stampStripImageUrl,
   };
 }
 
@@ -537,8 +546,8 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
   const primaryFields: ApplePassField[] = isStamps
     ? [{
       key: "stamps",
-      label: "Mes tampons",
-      value: vm.stampGridText!,
+      label: "Tampons",
+      value: formatStampProgressText(vm.balance, vm.stampsRequired ?? 0),
       changeMessage: vm.balanceChangeMessage,
     }]
     : [{
@@ -692,6 +701,16 @@ export type GoogleLinkModule = {
   uri: string;
 };
 
+export type GoogleImageModule = {
+  id: string;
+  mainImage: {
+    sourceUri: { uri: string };
+    contentDescription: {
+      defaultValue: { language: string; value: string };
+    };
+  };
+};
+
 export type GoogleWalletFieldSet = {
   accountName: string;
   loyaltyPointsLabel: string;
@@ -699,6 +718,7 @@ export type GoogleWalletFieldSet = {
   secondaryLoyaltyPointsLabel: string;
   secondaryLoyaltyPointsBalance: number;
   textModulesData: GoogleTextModule[];
+  imageModulesData: GoogleImageModule[];
   linksModuleData: GoogleLinkModule[];
   alternateText: string;
   notifyMessage: { header: string; body: string };
@@ -712,6 +732,7 @@ export const GOOGLE_FACE_MODULE_IDS = {
   status: "face_status",
   promo: "face_promo",
   stamps: "face_stamps",
+  stampsImage: "face_stamps_img",
 } as const;
 
 export function buildGoogleSecondaryLoyaltyPoints(vm: WalletCardViewModel): {
@@ -799,9 +820,9 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
   };
 }
 
-/** Layout ticket tampons — grille visuelle en tête de carte, sans gros chiffre solde. */
+/** Layout ticket tampons — bandeau image une ligne + infos client/récompense. */
 export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
-  const { client, reward, promo, stamps } = GOOGLE_FACE_MODULE_IDS;
+  const { client, reward, promo, stampsImage } = GOOGLE_FACE_MODULE_IDS;
   return {
     cardTemplateOverride: {
       cardRowTemplateInfos: [
@@ -809,7 +830,7 @@ export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
           oneItem: {
             item: {
               firstValue: {
-                fields: [{ fieldPath: `object.textModulesData['${stamps}']` }],
+                fields: [{ fieldPath: `object.imageModulesData['${stampsImage}']` }],
               },
             },
           },
@@ -864,11 +885,25 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
   const isStamps = vm.programType === "stamps" && vm.stampGridText;
 
   const textModules: GoogleTextModule[] = [];
+  const imageModules: GoogleImageModule[] = [];
 
-  if (isStamps) {
+  if (isStamps && vm.stampStripImageUrl) {
+    imageModules.push({
+      id: GOOGLE_FACE_MODULE_IDS.stampsImage,
+      mainImage: {
+        sourceUri: { uri: vm.stampStripImageUrl },
+        contentDescription: {
+          defaultValue: {
+            language: "fr-FR",
+            value: `Tampons ${formatStampProgressText(vm.balance, vm.stampsRequired ?? 0)}`,
+          },
+        },
+      },
+    });
+  } else if (isStamps) {
     textModules.push({
       id: GOOGLE_FACE_MODULE_IDS.stamps,
-      header: `Tampons · ${vm.balance}/${vm.stampsRequired ?? "?"}`,
+      header: `Tampons · ${formatStampProgressText(vm.balance, vm.stampsRequired ?? "?")}`,
       body: vm.stampGridText!,
     });
   }
@@ -960,6 +995,7 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
     secondaryLoyaltyPointsLabel: secondary.label,
     secondaryLoyaltyPointsBalance: secondary.balance.int,
     textModulesData: textModules,
+    imageModulesData: imageModules,
     linksModuleData,
     alternateText: vm.cardNumber,
     notifyMessage: {

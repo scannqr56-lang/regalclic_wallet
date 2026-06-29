@@ -1,10 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
   activateWalletCampaign,
+  deleteWalletCampaign,
   endWalletCampaign,
   expireDueWalletCampaigns,
   getCampaignNotifyQuotaStatus,
   notifyActiveCampaign,
+  updateWalletCampaign,
 } from "../_shared/wallet-campaign-core.ts";
 import { getGoogleAccessToken } from "../_shared/wallet-sync-core.ts";
 
@@ -179,8 +181,50 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "update") {
+      const title = String(body.title || "").trim();
+      const message = String(body.message || "").trim();
+      const offerLabel = String(body.offer_label || "").trim() || null;
+      const startsAt = String(body.starts_at || "").trim();
+      const endsAt = String(body.ends_at || "").trim();
+      const notifyOnActivate = Boolean(body.notify_on_activate);
+
+      if (!title) return jsonResponse({ error: "Le titre est requis" }, 400);
+      if (!message) return jsonResponse({ error: "Le message est requis" }, 400);
+      if (!startsAt || !endsAt) return jsonResponse({ error: "Les dates sont requises" }, 400);
+
+      const result = await updateWalletCampaign(admin, campaignId, {
+        title,
+        message,
+        offer_label: offerLabel,
+        notify_on_activate: notifyOnActivate,
+        starts_at: startsAt,
+        ends_at: endsAt,
+      }, googleToken);
+
+      return jsonResponse({
+        ok: true,
+        campaign: result.campaign,
+        broadcast: result.broadcast ?? null,
+        message: result.broadcast
+          ? formatBroadcastMessage(result.broadcast)
+          : "Campagne mise à jour",
+      });
+    }
+
+    if (action === "delete") {
+      const result = await deleteWalletCampaign(admin, campaignId, googleToken);
+      return jsonResponse({
+        ok: true,
+        broadcast: result.broadcast ?? null,
+        message: result.broadcast
+          ? `Offre supprimée — ${formatBroadcastMessage(result.broadcast)}`
+          : "Campagne supprimée",
+      });
+    }
+
     return jsonResponse({
-      error: "action invalide (activate | end | notify_all | notify_test | quota_status | expire_due)",
+      error: "action invalide (activate | end | notify_all | notify_test | update | delete | quota_status | expire_due)",
     }, 400);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue";

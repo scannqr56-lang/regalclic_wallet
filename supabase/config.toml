@@ -16,3 +16,6 @@ verify_jwt = false
 
 [functions.wallet-sync-membership]
 verify_jwt = false
+
+[functions.wallet-stamp-strip]
+verify_jwt = false
