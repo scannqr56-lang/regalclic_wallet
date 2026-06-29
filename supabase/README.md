@@ -17,6 +17,9 @@ Ce dossier contient le schéma de base de données pour la V1 Wallet-first, **in
 | `20250626140000_wallet_notification_state.sql` | Snapshots notif Wallet + pending Apple |
 | `20250626150000_wallet_campaigns.sql` | Campagnes promo Wallet + logs broadcast |
 | `20250626160000_wallet_campaign_notifications.sql` | Notif promo campagne + quota batch |
+| `20250628120000_rewards_keep_balance_until_redeem.sql` | Solde conservé jusqu'au redeem |
+| `20250629120000_ai_assistant_core.sql` | Assistant IA — tables `ai_*`, `plan`, RLS |
+| `20250629120001_ai_storage_business_private.sql` | Bucket privé `business-private` (menus IA) |
 
 ## Appliquer les migrations
 
@@ -32,6 +35,21 @@ Ce dossier contient le schéma de base de données pour la V1 Wallet-first, **in
 cd /Users/zaaouaryassin/Projects/regalclic_wallet
 supabase link --project-ref VOTRE_PROJECT_REF
 supabase db push
+```
+
+### Historique CLI désynchronisé (migrations déjà appliquées via SQL Editor)
+
+Si `supabase db push` propose **toutes** les migrations alors que la prod est déjà à jour, l'historique distant (`supabase_migrations.schema_migrations`) n'a pas été renseigné. Marquer les versions déjà en prod comme appliquées, puis pousser le reste :
+
+```bash
+# Exemple : tout sauf les 2 dernières migrations IA
+supabase migration repair --status applied \
+  20250625120000 20250625120001 20250625120002 20250625120003 20250625120004 20250625120005 \
+  20250626120000 20250626130000 20250626140000 20250626150000 20250626160000 20250628120000 \
+  --yes
+
+supabase migration list   # Local | Remote doivent être alignés
+supabase db push --yes    # ne propose plus que les migrations manquantes
 ```
 
 ## Tables créées

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Store, Sparkles, QrCode, ScanLine, Users, Megaphone, LogOut } from 'lucide-react';
+import { LayoutDashboard, Store, Sparkles, QrCode, ScanLine, Users, Megaphone, LogOut, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ const NAV = [
   { to: '/dashboard/business', label: 'Commerce', icon: Store },
   { to: '/dashboard/program', label: 'Programme', icon: Sparkles },
   { to: '/dashboard/offers', label: 'Offres promo', icon: Megaphone },
+  { to: '/dashboard/ai-assistant/upload', label: 'Assistant IA', icon: Bot, matchPrefix: '/dashboard/ai-assistant' },
   { to: '/dashboard/qr', label: 'QR inscription', icon: QrCode },
   { to: '/dashboard/scan', label: 'Scanner', icon: ScanLine },
   { to: '/dashboard/customers', label: 'Clients', icon: Users },
@@ -36,10 +37,12 @@ export default function DashboardLayout({ children, title, description }) {
 
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[220px_1fr]">
         <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
-          {NAV.map(({ to, label, icon: Icon, end }) => {
-            const active = end
-              ? location.pathname === to
-              : location.pathname.startsWith(to);
+          {NAV.map(({ to, label, icon: Icon, end, matchPrefix }) => {
+            const active = matchPrefix
+              ? location.pathname.startsWith(matchPrefix)
+              : end
+                ? location.pathname === to
+                : location.pathname.startsWith(to);
             return (
               <Link
                 key={to}

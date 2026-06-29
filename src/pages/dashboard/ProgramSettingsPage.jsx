@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,10 +12,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { markProgramSuggestionApplied } from '@/lib/ai-apply-suggestion';
 
 export default function ProgramSettingsPage() {
   const { business, loyaltyProgram, isLoading, refetch } = useMyBusiness();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [aiBanner, setAiBanner] = useState(null);
+  const [pendingAiSuggestionId, setPendingAiSuggestionId] = useState(null);
 
   const { data: reward } = useQuery({
     queryKey: ['reward', business?.id],
@@ -55,6 +59,37 @@ export default function ProgramSettingsPage() {
       });
     }
   }, [loyaltyProgram, reward]);
+
+  useEffect(() => {
+    const suggestionId = searchParams.get('ai_suggestion_id');
+    if (!suggestionId) return;
+
+    const rewardLabel = searchParams.get('ai_reward_label');
+    const rewardDescription = searchParams.get('ai_reward_description');
+    const threshold = searchParams.get('ai_threshold');
+    const isStamps = searchParams.get('ai_stamps') === '1' || loyaltyProgram?.type === 'stamps';
+
+    setForm((prev) => ({
+      ...prev,
+      ...(rewardLabel ? { reward_label: rewardLabel } : {}),
+      ...(rewardDescription ? { reward_description: rewardDescription } : {}),
+      ...(threshold && !isStamps
+        ? { reward_threshold: Number(threshold) || prev.reward_threshold }
+        : {}),
+      ...(threshold && isStamps
+        ? { stamps_required: Number(threshold) || prev.stamps_required }
+        : {}),
+    }));
+
+    setAiBanner('Suggestion IA pré-remplie — vérifiez avant d’enregistrer.');
+    setPendingAiSuggestionId(suggestionId);
+
+    const next = new URLSearchParams(searchParams);
+    ['ai_suggestion_id', 'ai_reward_label', 'ai_reward_description', 'ai_threshold', 'ai_stamps'].forEach((key) => {
+      next.delete(key);
+    });
+    setSearchParams(next, { replace: true });
+  }, [loyaltyProgram?.type, searchParams, setSearchParams]);
 
   const saveMutation = useMutation({
     mutationFn: async (payload) => {
@@ -110,7 +145,13 @@ export default function ProgramSettingsPage() {
 
       return programId;
     },
-    onSuccess: async () => {
+    onSuccess: async (programId) => {
+      if (pendingAiSuggestionId) {
+        await markProgramSuggestionApplied(pendingAiSuggestionId, programId);
+        setPendingAiSuggestionId(null);
+        setAiBanner(null);
+        queryClient.invalidateQueries({ queryKey: ['ai-all-suggestions', business?.id] });
+      }
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['reward', business?.id] });
       queryClient.invalidateQueries({ queryKey: ['my-business'] });
@@ -159,6 +200,11 @@ export default function ProgramSettingsPage() {
           <CardDescription>Un seul programme actif par commerce en V1.</CardDescription>
         </CardHeader>
         <CardContent>
+          {aiBanner ? (
+            <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+              {aiBanner}
+            </div>
+          ) : null}
           <form
             onSubmit={(e) => {
               e.preventDefault();

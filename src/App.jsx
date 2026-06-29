@@ -13,6 +13,14 @@ import ScanPage from '@/pages/dashboard/ScanPage';
 import CustomersPage from '@/pages/dashboard/CustomersPage';
 import CustomerDetailPage from '@/pages/dashboard/CustomerDetailPage';
 import OffersPage from '@/pages/dashboard/OffersPage';
+import AiAssistantUploadPage from '@/pages/dashboard/AiAssistantUploadPage';
+import AiAssistantMenuPage from '@/pages/dashboard/AiAssistantMenuPage';
+import AiAssistantProfilePage from '@/pages/dashboard/AiAssistantProfilePage';
+import AiAssistantSuggestionsPage from '@/pages/dashboard/AiAssistantSuggestionsPage';
+import AiAssistantRewardsPage from '@/pages/dashboard/AiAssistantRewardsPage';
+import AiAssistantOffersPage from '@/pages/dashboard/AiAssistantOffersPage';
+import AiAssistantNotificationsPage from '@/pages/dashboard/AiAssistantNotificationsPage';
+import AiAssistantCalendarPage from '@/pages/dashboard/AiAssistantCalendarPage';
 import JoinPage from '@/pages/join/JoinPage';
 import JoinSuccessPage from '@/pages/join/JoinSuccessPage';
 
@@ -90,6 +98,70 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <OffersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/upload"
+              element={
+                <ProtectedRoute>
+                  <AiAssistantUploadPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/menu/:uploadId"
+              element={
+                <ProtectedRoute>
+                  <AiAssistantMenuPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/profile"
+              element={
+                <ProtectedRoute>
+                  <AiAssistantProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/suggestions"
+              element={
+                <ProtectedRoute>
+                  <AiAssistantSuggestionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/rewards"
+              element={
+                <ProtectedRoute>
+                  <AiAssistantRewardsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/offers"
+              element={
+                <ProtectedRoute>
+                  <AiAssistantOffersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/notifications"
+              element={
+                <ProtectedRoute>
+                  <AiAssistantNotificationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/calendar"
+              element={
+                <ProtectedRoute>
+                  <AiAssistantCalendarPage />
                 </ProtectedRoute>
               }
             />

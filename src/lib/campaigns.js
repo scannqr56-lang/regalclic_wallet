@@ -39,6 +39,79 @@ export function formatCampaignDates(campaign) {
   return `${start} → ${end}`;
 }
 
+export function buildCampaignFormFromSuggestion(suggestion, overrides = {}) {
+  const defaults = buildCampaignFormDefaults();
+  const message = overrides.message
+    ?? suggestion.customer_message
+    ?? suggestion.wallet_notification_body
+    ?? '';
+  const title = overrides.title ?? suggestion.title ?? '';
+  const offerLabel = overrides.offer_label
+    ?? suggestion.description
+    ?? suggestion.wallet_notification_title
+    ?? '';
+
+  return {
+    title,
+    message,
+    offer_label: offerLabel,
+    notify_on_activate: Boolean(overrides.notify_on_activate),
+    starts_at: overrides.starts_at ?? defaults.starts_at,
+    ends_at: overrides.ends_at ?? defaults.ends_at,
+  };
+}
+
+export async function fetchCampaignAiOrigins(businessId) {
+  const [suggestionsResult, calendarResult] = await Promise.all([
+    supabase
+      .from('ai_suggestions')
+      .select('id, applied_entity_id, suggestion_type, title, status')
+      .eq('business_id', businessId)
+      .eq('applied_entity_type', 'wallet_campaign')
+      .not('applied_entity_id', 'is', null),
+    supabase
+      .from('ai_marketing_calendar_items')
+      .select('id, wallet_campaign_id, title')
+      .eq('business_id', businessId)
+      .not('wallet_campaign_id', 'is', null),
+  ]);
+
+  if (suggestionsResult.error) throw suggestionsResult.error;
+  if (calendarResult.error) throw calendarResult.error;
+
+  const byCampaignId = {};
+
+  for (const suggestion of suggestionsResult.data ?? []) {
+    if (!suggestion.applied_entity_id) continue;
+    byCampaignId[suggestion.applied_entity_id] = {
+      kind: 'suggestion',
+      suggestionId: suggestion.id,
+      suggestionType: suggestion.suggestion_type,
+      title: suggestion.title,
+      status: suggestion.status,
+    };
+  }
+
+  for (const item of calendarResult.data ?? []) {
+    if (!item.wallet_campaign_id || byCampaignId[item.wallet_campaign_id]) continue;
+    byCampaignId[item.wallet_campaign_id] = {
+      kind: 'calendar',
+      calendarItemId: item.id,
+      title: item.title,
+    };
+  }
+
+  return byCampaignId;
+}
+
+export function getCampaignAiOriginLabel(origin) {
+  if (!origin) return null;
+  if (origin.kind === 'calendar') return 'Calendrier IA';
+  if (origin.suggestionType === 'notification') return 'Notification IA';
+  if (origin.suggestionType === 'offer') return 'Offre IA';
+  return 'Créée par IA';
+}
+
 export async function fetchCampaigns(businessId) {
   const { data, error } = await supabase
     .from('wallet_campaigns')
@@ -150,6 +223,11 @@ export async function createCampaign(businessId, form) {
 
   if (error) throw error;
   return data;
+}
+
+export async function createCampaignFromSuggestion(businessId, suggestion, formOverrides = {}) {
+  const form = buildCampaignFormFromSuggestion(suggestion, formOverrides);
+  return createCampaign(businessId, form);
 }
 
 export async function updateCampaign(campaignId, form, { status } = {}) {

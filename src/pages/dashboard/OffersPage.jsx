@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Megaphone,
   Plus,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import AiOriginBadge from '@/components/ai-assistant/AiOriginBadge';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,10 +30,12 @@ import {
   createCampaign,
   deleteCampaign,
   endCampaign,
+  fetchCampaignAiOrigins,
   fetchCampaignBroadcastStats,
   fetchCampaignNotifyQuota,
   fetchCampaigns,
   formatCampaignDates,
+  getCampaignAiOriginLabel,
   notifyAllCampaign,
   notifyTestCampaign,
   updateCampaign,
@@ -183,6 +187,7 @@ function CampaignStats({ campaignId }) {
 export default function OffersPage() {
   const { business, isLoading } = useMyBusiness();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState('list');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(buildCampaignFormDefaults());
@@ -191,6 +196,12 @@ export default function OffersPage() {
   const { data: campaigns = [], isLoading: campaignsLoading } = useQuery({
     queryKey: ['wallet-campaigns', business?.id],
     queryFn: () => fetchCampaigns(business.id),
+    enabled: !!business?.id,
+  });
+
+  const { data: campaignAiOrigins = {} } = useQuery({
+    queryKey: ['campaign-ai-origins', business?.id],
+    queryFn: () => fetchCampaignAiOrigins(business.id),
     enabled: !!business?.id,
   });
 
@@ -209,14 +220,32 @@ export default function OffersPage() {
     }
   }, [editingId, campaigns]);
 
+  useEffect(() => {
+    const draftId = searchParams.get('draft');
+    if (!draftId || !campaigns.length) return;
+
+    const campaign = campaigns.find((c) => c.id === draftId);
+    if (!campaign) return;
+
+    setEditingId(campaign.id);
+    setMode('edit');
+    setForm(buildCampaignFormDefaults(campaign));
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('draft');
+    setSearchParams(next, { replace: true });
+  }, [campaigns, searchParams, setSearchParams]);
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['wallet-campaigns', business?.id] });
+    queryClient.invalidateQueries({ queryKey: ['campaign-ai-origins', business?.id] });
     if (editingId) {
       queryClient.invalidateQueries({ queryKey: ['campaign-broadcast-stats', editingId] });
     }
   };
 
   const editingCampaign = editingId ? campaigns.find((c) => c.id === editingId) : null;
+  const editingAiOrigin = editingId ? campaignAiOrigins[editingId] : null;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -363,6 +392,9 @@ export default function OffersPage() {
                 {' — '}
                 {formatCampaignDates(activeCampaign)}
               </CardDescription>
+              {campaignAiOrigins[activeCampaign.id] ? (
+                <AiOriginBadge label={getCampaignAiOriginLabel(campaignAiOrigins[activeCampaign.id])} />
+              ) : null}
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-emerald-900">{activeCampaign.message}</p>
@@ -467,6 +499,22 @@ export default function OffersPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {editingAiOrigin ? (
+                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+                  <AiOriginBadge label={getCampaignAiOriginLabel(editingAiOrigin)} />
+                  <span>
+                    Brouillon issu de l&apos;assistant IA — vérifiez le message avant activation.
+                  </span>
+                  {editingAiOrigin.suggestionId ? (
+                    <Link
+                      className="text-xs font-medium underline"
+                      to="/dashboard/ai-assistant/suggestions"
+                    >
+                      Retour validation
+                    </Link>
+                  ) : null}
+                </div>
+              ) : null}
               <CampaignForm
                 form={form}
                 onChange={setForm}
@@ -526,6 +574,9 @@ export default function OffersPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium text-slate-900">{campaign.title}</p>
                           <StatusBadge status={campaign.status} />
+                          {campaignAiOrigins[campaign.id] ? (
+                            <AiOriginBadge label={getCampaignAiOriginLabel(campaignAiOrigins[campaign.id])} />
+                          ) : null}
                         </div>
                         <p className="text-sm text-muted-foreground">{campaign.message}</p>
                         <p className="text-xs text-muted-foreground">{formatCampaignDates(campaign)}</p>
