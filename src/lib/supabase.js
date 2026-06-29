@@ -66,6 +66,25 @@ export async function fetchMyBusiness() {
   };
 }
 
+export async function fetchSessionProfile() {
+  const { data, error } = await supabase.rpc('get_session_profile');
+  if (error) throw error;
+  if (!data) {
+    return {
+      isPlatformAdmin: false,
+      merchant: null,
+      isDisabled: false,
+      hasMerchantAccount: false,
+    };
+  }
+  return {
+    isPlatformAdmin: Boolean(data.is_platform_admin),
+    merchant: data.merchant ?? null,
+    isDisabled: Boolean(data.is_disabled),
+    hasMerchantAccount: Boolean(data.has_merchant_account),
+  };
+}
+
 export async function fetchBusinessStats(businessId) {
   const { data, error } = await supabase.rpc('get_business_stats', {
     p_business_id: businessId,

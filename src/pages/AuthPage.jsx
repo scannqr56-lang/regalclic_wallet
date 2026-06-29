@@ -10,11 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AuthPage() {
-  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { isAuthenticated, refresh } = useAuth();
+  const { isAuthenticated, isPlatformAdmin, isMerchantDisabled, hasMerchantAccount, refresh } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -24,24 +23,34 @@ export default function AuthPage() {
   })();
 
   useEffect(() => {
-    if (isAuthenticated) navigate(next, { replace: true });
-  }, [isAuthenticated, navigate, next]);
+    if (!isAuthenticated) return;
+
+    if (isPlatformAdmin) {
+      navigate('/admin/merchants', { replace: true });
+      return;
+    }
+
+    if (isMerchantDisabled) {
+      toast.error('Votre compte a été désactivé. Contactez RegalClic.');
+      return;
+    }
+
+    if (!hasMerchantAccount) {
+      return;
+    }
+
+    navigate(next.startsWith('/admin') ? '/dashboard' : next, { replace: true });
+  }, [isAuthenticated, isPlatformAdmin, isMerchantDisabled, hasMerchantAccount, navigate, next]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === 'signup') {
-        await supabaseAuth.signUp(email, password);
-        toast.success('Compte créé ! Vérifiez votre email si la confirmation est activée.');
-      } else {
-        await supabaseAuth.signIn(email, password);
-        toast.success('Connexion réussie');
-      }
+      await supabaseAuth.signIn(email, password);
       await refresh();
-      navigate(next, { replace: true });
+      toast.success('Connexion réussie');
     } catch (error) {
-      toast.error(getAuthErrorMessage(error, mode));
+      toast.error(getAuthErrorMessage(error, 'login'));
     } finally {
       setLoading(false);
     }
@@ -52,9 +61,9 @@ export default function AuthPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <p className="text-sm font-medium text-rc-teal">RegalClic Wallet</p>
-          <CardTitle>{mode === 'login' ? 'Connexion restaurateur' : 'Créer un compte'}</CardTitle>
+          <CardTitle>Connexion restaurateur</CardTitle>
           <CardDescription>
-            Gérez votre carte de fidélité digitale Apple & Google Wallet.
+            Accès réservé aux commerçants créés par l&apos;équipe RegalClic.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -86,24 +95,17 @@ export default function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  autoComplete="current-password"
                 />
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Chargement…' : mode === 'login' ? 'Se connecter' : "S'inscrire"}
+              {loading ? 'Chargement…' : 'Se connecter'}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            {mode === 'login' ? 'Pas encore de compte ?' : 'Déjà un compte ?'}{' '}
-            <button
-              type="button"
-              className="font-medium text-rc-navy underline"
-              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-            >
-              {mode === 'login' ? "S'inscrire" : 'Se connecter'}
-            </button>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Pas de compte ? Contactez RegalClic pour obtenir vos identifiants.
           </p>
         </CardContent>
       </Card>

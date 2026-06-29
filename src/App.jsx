@@ -3,7 +3,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/lib/AuthContext';
 import { queryClient } from '@/lib/query-client';
-import ProtectedRoute from '@/components/ProtectedRoute';
+import MerchantProtectedRoute from '@/components/MerchantProtectedRoute';
+import AdminProtectedRoute from '@/components/AdminProtectedRoute';
 import AuthPage from '@/pages/AuthPage';
 import DashboardHomePage from '@/pages/dashboard/DashboardHomePage';
 import BusinessSettingsPage from '@/pages/dashboard/BusinessSettingsPage';
@@ -21,6 +22,7 @@ import AiAssistantRewardsPage from '@/pages/dashboard/AiAssistantRewardsPage';
 import AiAssistantOffersPage from '@/pages/dashboard/AiAssistantOffersPage';
 import AiAssistantNotificationsPage from '@/pages/dashboard/AiAssistantNotificationsPage';
 import AiAssistantCalendarPage from '@/pages/dashboard/AiAssistantCalendarPage';
+import AdminMerchantsPage from '@/pages/admin/AdminMerchantsPage';
 import JoinPage from '@/pages/join/JoinPage';
 import JoinSuccessPage from '@/pages/join/JoinSuccessPage';
 
@@ -40,129 +42,137 @@ export default function App() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <DashboardHomePage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/business"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <BusinessSettingsPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/program"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <ProgramSettingsPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/qr"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <QrPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/scan"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <ScanPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/customers"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <CustomersPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/customers/:membershipId"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <CustomerDetailPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/offers"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <OffersPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/ai-assistant/upload"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <AiAssistantUploadPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/ai-assistant/menu/:uploadId"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <AiAssistantMenuPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/ai-assistant/profile"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <AiAssistantProfilePage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/ai-assistant/suggestions"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <AiAssistantSuggestionsPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/ai-assistant/rewards"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <AiAssistantRewardsPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/ai-assistant/offers"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <AiAssistantOffersPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/ai-assistant/notifications"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <AiAssistantNotificationsPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
               }
             />
             <Route
               path="/dashboard/ai-assistant/calendar"
               element={
-                <ProtectedRoute>
+                <MerchantProtectedRoute>
                   <AiAssistantCalendarPage />
-                </ProtectedRoute>
+                </MerchantProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/merchants"
+              element={
+                <AdminProtectedRoute>
+                  <AdminMerchantsPage />
+                </AdminProtectedRoute>
               }
             />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

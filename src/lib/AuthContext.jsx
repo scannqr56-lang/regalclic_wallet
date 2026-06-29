@@ -1,15 +1,33 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { supabase, supabaseAuth } from '@/lib/supabase';
+import { supabase, supabaseAuth, fetchSessionProfile } from '@/lib/supabase';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [sessionProfile, setSessionProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const syncSession = useCallback(async () => {
     const sessionUser = await supabaseAuth.getSessionUser();
     setUser(sessionUser);
+
+    if (sessionUser) {
+      try {
+        const profile = await fetchSessionProfile();
+        setSessionProfile(profile);
+      } catch {
+        setSessionProfile({
+          isPlatformAdmin: false,
+          merchant: null,
+          isDisabled: false,
+          hasMerchantAccount: false,
+        });
+      }
+    } else {
+      setSessionProfile(null);
+    }
+
     setIsLoading(false);
   }, []);
 
@@ -26,6 +44,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     await supabaseAuth.signOut();
     setUser(null);
+    setSessionProfile(null);
     window.location.href = '/auth';
   };
 
@@ -33,6 +52,10 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         user,
+        sessionProfile,
+        isPlatformAdmin: Boolean(sessionProfile?.isPlatformAdmin),
+        isMerchantDisabled: Boolean(sessionProfile?.isDisabled),
+        hasMerchantAccount: Boolean(sessionProfile?.hasMerchantAccount),
         isAuthenticated: !!user,
         isLoading,
         logout,
