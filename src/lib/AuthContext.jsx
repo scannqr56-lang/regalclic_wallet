@@ -3,6 +3,13 @@ import { supabase, supabaseAuth, fetchSessionProfile } from '@/lib/supabase';
 
 const AuthContext = createContext(null);
 
+const EMPTY_PROFILE = {
+  isPlatformAdmin: false,
+  merchant: null,
+  isDisabled: false,
+  hasMerchantAccount: false,
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [sessionProfile, setSessionProfile] = useState(null);
@@ -12,23 +19,23 @@ export function AuthProvider({ children }) {
     const sessionUser = await supabaseAuth.getSessionUser();
     setUser(sessionUser);
 
-    if (sessionUser) {
-      try {
-        const profile = await fetchSessionProfile();
-        setSessionProfile(profile);
-      } catch {
-        setSessionProfile({
-          isPlatformAdmin: false,
-          merchant: null,
-          isDisabled: false,
-          hasMerchantAccount: false,
-        });
-      }
-    } else {
+    if (!sessionUser) {
       setSessionProfile(null);
+      setIsLoading(false);
+      return EMPTY_PROFILE;
     }
 
-    setIsLoading(false);
+    try {
+      const profile = await fetchSessionProfile();
+      setSessionProfile(profile);
+      setIsLoading(false);
+      return profile;
+    } catch (error) {
+      console.error('get_session_profile failed', error);
+      setSessionProfile(EMPTY_PROFILE);
+      setIsLoading(false);
+      return EMPTY_PROFILE;
+    }
   }, []);
 
   useEffect(() => {
