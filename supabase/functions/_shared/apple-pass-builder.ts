@@ -10,6 +10,7 @@ import {
 import {
   buildWalletCardViewModel,
   mapViewModelToAppleFields,
+  WALLET_DEFAULT_TEXTS,
   type ApplePassFieldSet,
   type WalletCardDbInput,
   type WalletCardViewModel,
@@ -125,6 +126,7 @@ async function resolvePassImages(
         foregroundHex: viewModel.labelColorHex,
         width: 750,
         height: 112,
+        rewardReady: viewModel.hasRewardUnlocked,
       });
       strip1x = strip2x;
     } catch (error) {
@@ -262,6 +264,15 @@ export async function buildApplePkpass(input: ApplePassBuildInput): Promise<Uint
       key: "tagline",
       label: " ",
       value: vm.promoMessage,
+    });
+  }
+
+  if (vm.hasRewardUnlocked) {
+    fields.auxiliaryFields.unshift({
+      key: "reward_unlocked_banner",
+      label: WALLET_DEFAULT_TEXTS.rewardUnlockedShort,
+      value: vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel,
+      changeMessage: "Récompense : %@",
     });
   }
 

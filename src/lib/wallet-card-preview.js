@@ -46,7 +46,13 @@ function formatEarnRuleText(programType, program, rewardLabel) {
   return `1 € = ${formatted} ${pointWord}`;
 }
 
-function formatNextRewardText(programType, unitsToNext, rewardLabel) {
+function formatNextRewardText(programType, unitsToNext, rewardLabel, rewardsAvailable = 0) {
+  if (rewardsAvailable > 0) {
+    if (rewardsAvailable === 1) {
+      return `${rewardLabel} débloqué — à utiliser en caisse`;
+    }
+    return `${rewardsAvailable} récompenses débloquées`;
+  }
   if (unitsToNext <= 0) {
     return programType === 'stamps'
       ? `Prochain ${rewardLabel.toLowerCase()} bientôt disponible`
@@ -91,7 +97,11 @@ export function buildWalletPreviewModel(form, loyaltyProgram) {
   const balance = programType === 'stamps' ? PREVIEW_BALANCE_STAMPS : PREVIEW_BALANCE_POINTS;
   const balanceLabel = programType === 'stamps' ? 'Tampons' : 'Points';
   const unitsToNext = computeUnitsToNextReward(programType, balance, loyaltyProgram);
-  const rewardsAvailableSample = programType === 'stamps' ? 0 : 1;
+  const rewardsAvailableSample = programType === 'points' ? 1 : 0;
+  const hasRewardUnlocked = rewardsAvailableSample > 0;
+  const rewardUnlockedBannerText = hasRewardUnlocked
+    ? 'Récompense débloquée — présentez votre carte en caisse'
+    : null;
   const secondaryMetricLabel = rewardsAvailableSample > 0 ? 'Récompense' : 'Encore';
   const secondaryMetricValue = rewardsAvailableSample > 0
     ? rewardsAvailableSample
@@ -114,7 +124,7 @@ export function buildWalletPreviewModel(form, loyaltyProgram) {
     balance,
     balanceLabel,
     rewardLabel,
-    nextRewardText: formatNextRewardText(programType, unitsToNext, rewardLabel),
+    nextRewardText: formatNextRewardText(programType, unitsToNext, rewardLabel, rewardsAvailableSample),
     earnRuleText: formatEarnRuleText(programType, loyaltyProgram, rewardLabel),
     faceTagline: resolveFaceTagline(promo),
     promoMessage: promo || null,
@@ -126,5 +136,7 @@ export function buildWalletPreviewModel(form, loyaltyProgram) {
     stampsRequired,
     stampColumns,
     stampSlots,
+    hasRewardUnlocked,
+    rewardUnlockedBannerText,
   };
 }

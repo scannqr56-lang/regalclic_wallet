@@ -1,4 +1,4 @@
-import { Check, Gift } from 'lucide-react';
+import { Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function PerforationEdge() {
@@ -17,23 +17,30 @@ function PerforationEdge() {
   );
 }
 
-function StampSlot({ filled, isReward, compact }) {
+function StampSlot({ filled, isReward, rewardReady, compact }) {
   const sizeClass = compact
     ? 'h-8 w-8 min-w-[2rem] sm:h-9 sm:w-9'
     : 'h-10 w-10 min-w-[2.5rem] sm:h-11 sm:w-11';
 
+  const showRewardGlow = isReward && rewardReady;
+
   return (
     <div className="relative flex flex-1 items-center justify-center">
+      {showRewardGlow ? (
+        <span className="absolute h-full w-full max-h-12 max-w-12 rounded-full bg-amber-400/25 blur-sm" />
+      ) : null}
       <div
         className={cn(
           'relative flex items-center justify-center rounded-full border-[2.5px] shadow-sm transition-all',
           sizeClass,
           isReward
-            ? filled
-              ? 'border-amber-300 bg-gradient-to-br from-amber-300/40 to-amber-500/30 shadow-[0_0_14px_rgba(251,191,36,0.35)]'
-              : 'border-dashed border-amber-300/55 bg-amber-400/10'
+            ? showRewardGlow
+              ? 'border-amber-300 bg-gradient-to-br from-amber-300 to-amber-500 shadow-[0_0_16px_rgba(251,191,36,0.45)]'
+              : filled
+                ? 'border-amber-300/90 bg-amber-400/35'
+                : 'border-dashed border-amber-300/55 bg-amber-400/10'
             : filled
-              ? 'border-white bg-white text-slate-900'
+              ? 'border-white bg-white'
               : 'border-dashed border-white/50 bg-white/[0.06]',
         )}
       >
@@ -41,12 +48,10 @@ function StampSlot({ filled, isReward, compact }) {
           <Gift
             className={cn(
               compact ? 'h-3.5 w-3.5' : 'h-4 w-4',
-              filled ? 'text-amber-100' : 'text-amber-200/70',
+              showRewardGlow ? 'text-amber-50' : 'text-amber-200/80',
             )}
             strokeWidth={2.2}
           />
-        ) : filled ? (
-          <Check className={cn(compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} strokeWidth={3} />
         ) : null}
       </div>
     </div>
@@ -54,7 +59,7 @@ function StampSlot({ filled, isReward, compact }) {
 }
 
 /**
- * Ticket à tampons — une seule ligne, cercles larges type carte physique.
+ * Ticket à tampons — une seule ligne, cercles pleins sans traits intérieurs.
  */
 export default function StampTicketGrid({
   slots,
@@ -62,12 +67,14 @@ export default function StampTicketGrid({
   total,
   rewardLabel,
   labelColor,
+  rewardReady = false,
   className,
 }) {
   return (
     <div
       className={cn(
         'relative rounded-xl border border-dashed border-white/30 bg-black/25 px-2 py-4 sm:px-3',
+        rewardReady && 'border-amber-300/40 bg-amber-500/10',
         className,
       )}
     >
@@ -84,6 +91,7 @@ export default function StampTicketGrid({
             key={slot.index}
             filled={slot.filled}
             isReward={slot.isReward}
+            rewardReady={rewardReady && slot.isReward}
             compact={slots.length > 8}
           />
         ))}
@@ -93,5 +101,19 @@ export default function StampTicketGrid({
         <span className="font-semibold text-white">{rewardLabel}</span>
       </p>
     </div>
+  );
+}
+
+export function RewardUnlockedBanner({ text, className }) {
+  if (!text) return null;
+  return (
+    <p
+      className={cn(
+        'rounded-lg border border-amber-300/50 bg-gradient-to-r from-amber-400/25 to-amber-500/15 px-3 py-2.5 text-center text-sm font-semibold text-amber-50 shadow-[0_0_20px_rgba(251,191,36,0.15)]',
+        className,
+      )}
+    >
+      🎉 {text}
+    </p>
   );
 }

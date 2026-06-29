@@ -17,31 +17,6 @@ function rgba(r: number, g: number, b: number, a = 255): number {
   return Image.rgbaToColor(r, g, b, a);
 }
 
-function drawCheckMark(
-  img: Image,
-  cx: number,
-  cy: number,
-  size: number,
-  color: number,
-) {
-  const s = Math.max(3, Math.floor(size * 0.45));
-  for (let dy = -s; dy <= s; dy += 1) {
-    const x1 = cx - Math.floor(s * 0.55);
-    const y1 = cy + dy;
-    if (x1 >= 0 && y1 >= 0 && x1 < img.width && y1 < img.height) {
-      img.setPixelAt(x1, y1, color);
-    }
-  }
-  for (let t = 0; t <= s; t += 1) {
-    const x2 = cx - Math.floor(s * 0.15) + t;
-    const y2 = cy + Math.floor(t * 0.85);
-    if (x2 >= 0 && y2 >= 0 && x2 < img.width && y2 < img.height) {
-      img.setPixelAt(x2, y2, color);
-      if (y2 + 1 < img.height) img.setPixelAt(x2, y2 + 1, color);
-    }
-  }
-}
-
 function drawRing(
   img: Image,
   cx: number,
@@ -63,6 +38,8 @@ export type StampStripOptions = {
   foregroundHex?: string;
   width?: number;
   height?: number;
+  /** Récompense débloquée — dernier slot doré plein */
+  rewardReady?: boolean;
 };
 
 export async function generateStampStripPng(options: StampStripOptions): Promise<Uint8Array> {
@@ -74,13 +51,15 @@ export async function generateStampStripPng(options: StampStripOptions): Promise
   const bg = rgba(bgR, bgG, bgB);
   const fg = rgba(fgR, fgG, fgB);
   const gold = rgba(251, 191, 36);
-  const goldDim = rgba(251, 191, 36, 180);
+  const goldDim = rgba(251, 191, 36, 200);
+  const goldGlow = rgba(253, 224, 71, 120);
 
   const img = new Image(width, height);
   img.fill(bg);
 
   const total = Math.max(1, Math.floor(options.total));
   const filled = Math.min(Math.max(0, Math.floor(options.filled)), total);
+  const rewardReady = Boolean(options.rewardReady);
   const horizontalPadding = 16;
   const usable = width - horizontalPadding * 2;
   const step = usable / total;
@@ -96,16 +75,16 @@ export async function generateStampStripPng(options: StampStripOptions): Promise
     const isFilled = i < filled;
 
     if (isReward) {
-      if (isFilled) {
+      if (rewardReady || isFilled) {
+        if (rewardReady) {
+          img.drawCircle(cx, cy, radius + 2, goldGlow);
+        }
         img.drawCircle(cx, cy, radius, gold);
-        drawCheckMark(img, cx, cy, radius, bg);
       } else {
         drawRing(img, cx, cy, radius, goldDim, bg, 3);
-        img.drawCircle(cx, cy, Math.max(2, radius - 6), rgba(251, 191, 36, 60));
       }
     } else if (isFilled) {
       img.drawCircle(cx, cy, radius, fg);
-      drawCheckMark(img, cx, cy, radius, bg);
     } else {
       drawRing(img, cx, cy, radius, fg, bg, 3);
     }
@@ -120,6 +99,7 @@ export function buildStampStripImageUrl(
   total: number,
   backgroundHex: string,
   foregroundHex?: string,
+  options?: { rewardReady?: boolean },
 ): string | null {
   const base = supabaseUrl.replace(/\/$/, "");
   if (!base.startsWith("https://")) return null;
@@ -130,6 +110,10 @@ export function buildStampStripImageUrl(
     bg: backgroundHex.replace("#", ""),
     fg: (foregroundHex || "#ffffff").replace("#", ""),
   });
+
+  if (options?.rewardReady) {
+    params.set("reward", "1");
+  }
 
   return `${base}/functions/v1/wallet-stamp-strip?${params.toString()}`;
 }

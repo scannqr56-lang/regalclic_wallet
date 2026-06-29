@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildWalletPreviewModel } from '@/lib/wallet-card-preview';
-import StampTicketGrid from '@/components/wallet/StampTicketGrid';
+import StampTicketGrid, { RewardUnlockedBanner } from '@/components/wallet/StampTicketGrid';
 
 function PreviewField({ label, value, labelColor, valueClassName, className }) {
   if (!value) return null;
@@ -33,12 +33,16 @@ function PointsBalanceHero({ model }) {
 function StampCardBody({ model }) {
   return (
     <div className="space-y-4">
+      {model.hasRewardUnlocked ? (
+        <RewardUnlockedBanner text={model.rewardUnlockedBannerText} />
+      ) : null}
       <StampTicketGrid
         slots={model.stampSlots}
         balance={model.balance}
         total={model.stampsRequired}
         rewardLabel={model.rewardLabel}
         labelColor={model.labelColor}
+        rewardReady={model.hasRewardUnlocked}
       />
       <div className="grid grid-cols-2 gap-3">
         <PreviewField label="Client" value={model.customerDisplayName} labelColor={model.labelColor} />
@@ -59,6 +63,9 @@ function StampCardBody({ model }) {
 function PointsCardBody({ model, statusLabel, statusValue }) {
   return (
     <div className="space-y-4">
+      {model.hasRewardUnlocked ? (
+        <RewardUnlockedBanner text={model.rewardUnlockedBannerText} />
+      ) : null}
       <PointsBalanceHero model={model} />
       <div className="grid grid-cols-2 gap-3">
         <PreviewField label="Client" value={model.customerDisplayName} labelColor={model.labelColor} />

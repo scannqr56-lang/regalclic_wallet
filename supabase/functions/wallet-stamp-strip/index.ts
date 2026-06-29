@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
       foregroundHex: fg,
       width: 750,
       height: 112,
+      rewardReady: url.searchParams.get("reward") === "1",
     });
 
     return new Response(png, {

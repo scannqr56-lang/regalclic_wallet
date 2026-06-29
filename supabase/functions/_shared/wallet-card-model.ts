@@ -49,6 +49,8 @@ export const WALLET_DEFAULT_TEXTS = {
   pointsChangeMessage: "Vous avez maintenant %@ points",
   stampsChangeMessage: "Vous avez maintenant %@ tampons",
   rewardAvailableLabel: "Récompense disponible",
+  rewardUnlockedBanner: "Récompense débloquée — présentez votre carte en caisse",
+  rewardUnlockedShort: "Récompense débloquée !",
   nextRewardLabel: "Prochaine récompense",
   balanceLabelPoints: "Points",
   balanceLabelStamps: "Tampons",
@@ -210,6 +212,9 @@ export type WalletCardViewModel = {
   stampGridText: string | null;
   stampGridColumns: number | null;
   stampStripImageUrl: string | null;
+
+  hasRewardUnlocked: boolean;
+  rewardUnlockedBannerText: string | null;
 };
 
 export type StampSlot = {
@@ -335,7 +340,14 @@ export function formatNextRewardText(
   programType: WalletProgramType,
   unitsToNext: number,
   rewardLabel: string,
+  rewardsAvailable = 0,
 ): string {
+  if (rewardsAvailable > 0) {
+    if (rewardsAvailable === 1) {
+      return `${rewardLabel} débloqué — à utiliser en caisse`;
+    }
+    return `${rewardsAvailable} récompenses débloquées`;
+  }
   if (unitsToNext <= 0) {
     return programType === "stamps"
       ? `Prochain ${rewardLabel.toLowerCase()} bientôt disponible`
@@ -418,8 +430,17 @@ export function buildWalletCardViewModel(input: WalletCardDbInput): WalletCardVi
   const rewardsAvailable = Math.max(0, Math.floor(Number(input.membership.rewards_available) || 0));
   const rewardThreshold = programType === "points" ? resolveRewardThreshold(input.program) : null;
   const unitsToNextReward = computeUnitsToNextReward(programType, balance, input.program);
-  const nextRewardText = formatNextRewardText(programType, unitsToNextReward, rewardLabel);
+  const nextRewardText = formatNextRewardText(
+    programType,
+    unitsToNextReward,
+    rewardLabel,
+    rewardsAvailable,
+  );
   const rewardsAvailableText = formatRewardsAvailableText(rewardsAvailable, rewardLabel);
+  const hasRewardUnlocked = rewardsAvailable > 0;
+  const rewardUnlockedBannerText = hasRewardUnlocked
+    ? WALLET_DEFAULT_TEXTS.rewardUnlockedBanner
+    : null;
 
   const balanceLabel = programType === "stamps"
     ? WALLET_DEFAULT_TEXTS.balanceLabelStamps
@@ -453,6 +474,7 @@ export function buildWalletCardViewModel(input: WalletCardDbInput): WalletCardVi
       stampsRequired,
       resolvePrimaryHex(input.business.primary_color),
       resolveLabelHex(input.business.wallet_label_color),
+      { rewardReady: hasRewardUnlocked },
     )
     : null;
 
@@ -512,6 +534,9 @@ export function buildWalletCardViewModel(input: WalletCardDbInput): WalletCardVi
     stampGridText,
     stampGridColumns,
     stampStripImageUrl,
+
+    hasRewardUnlocked,
+    rewardUnlockedBannerText,
   };
 }
 
@@ -563,8 +588,19 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
     value: vm.customerDisplayName,
   }];
 
-  const auxiliaryFields: ApplePassField[] = isStamps
-    ? [
+  const auxiliaryFields: ApplePassField[] = [];
+
+  if (vm.hasRewardUnlocked) {
+    auxiliaryFields.push({
+      key: "reward_unlocked",
+      label: WALLET_DEFAULT_TEXTS.rewardUnlockedShort,
+      value: vm.rewardsAvailableText || vm.rewardLabel,
+      changeMessage: "Récompense : %@",
+    });
+  }
+
+  if (isStamps) {
+    auxiliaryFields.push(
       {
         key: "reward",
         label: "Récompense",
@@ -575,8 +611,9 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
         label: "Progression",
         value: `${vm.balance}/${vm.stampsRequired ?? "?"}`,
       },
-    ]
-    : [
+    );
+  } else {
+    auxiliaryFields.push(
       {
         key: "next_reward",
         label: WALLET_DEFAULT_TEXTS.nextRewardLabel,
@@ -587,9 +624,10 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
         label: "Récompense",
         value: vm.rewardLabel,
       },
-    ];
+    );
+  }
 
-  if (vm.rewardsAvailableText) {
+  if (vm.rewardsAvailableText && !vm.hasRewardUnlocked) {
     auxiliaryFields.push({
       key: "available",
       label: WALLET_DEFAULT_TEXTS.rewardAvailableLabel,
@@ -733,6 +771,7 @@ export const GOOGLE_FACE_MODULE_IDS = {
   promo: "face_promo",
   stamps: "face_stamps",
   stampsImage: "face_stamps_img",
+  rewardUnlocked: "face_reward_unlocked",
 } as const;
 
 export function buildGoogleSecondaryLoyaltyPoints(vm: WalletCardViewModel): {
@@ -820,9 +859,9 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
   };
 }
 
-/** Layout ticket tampons — bandeau image une ligne + infos client/récompense. */
+/** Layout ticket tampons — bandeau image + bannière récompense si débloquée. */
 export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
-  const { client, reward, promo, stampsImage } = GOOGLE_FACE_MODULE_IDS;
+  const { client, reward, promo, stampsImage, rewardUnlocked } = GOOGLE_FACE_MODULE_IDS;
   return {
     cardTemplateOverride: {
       cardRowTemplateInfos: [
@@ -831,6 +870,15 @@ export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
             item: {
               firstValue: {
                 fields: [{ fieldPath: `object.imageModulesData['${stampsImage}']` }],
+              },
+            },
+          },
+        },
+        {
+          oneItem: {
+            item: {
+              firstValue: {
+                fields: [{ fieldPath: `object.textModulesData['${rewardUnlocked}']` }],
               },
             },
           },
@@ -908,6 +956,16 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
     });
   }
 
+  if (isStamps) {
+    textModules.push({
+      id: GOOGLE_FACE_MODULE_IDS.rewardUnlocked,
+      header: vm.hasRewardUnlocked ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort : " ",
+      body: vm.hasRewardUnlocked
+        ? (vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel)
+        : " ",
+    });
+  }
+
   textModules.push(
     {
       id: GOOGLE_FACE_MODULE_IDS.client,
@@ -927,8 +985,12 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
     ...(isStamps ? [] : [buildGoogleFaceStatusModule(vm)]),
     {
       id: GOOGLE_FACE_MODULE_IDS.promo,
-      header: vm.promoMessage ? vm.promoLabel : " ",
-      body: vm.promoMessage || vm.faceTagline,
+      header: (!isStamps && vm.hasRewardUnlocked)
+        ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort
+        : (vm.promoMessage ? vm.promoLabel : " "),
+      body: (!isStamps && vm.hasRewardUnlocked)
+        ? (vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel)
+        : (vm.promoMessage || vm.faceTagline),
     },
     {
       id: "program",
