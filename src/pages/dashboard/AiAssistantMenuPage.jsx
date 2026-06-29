@@ -54,7 +54,6 @@ function StatusBadge({ status }) {
 
 export default function AiAssistantMenuPage() {
   const { uploadId } = useParams();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { business } = useMyBusiness();
   const [editorData, setEditorData] = useState(emptyExtractedMenuJson());
