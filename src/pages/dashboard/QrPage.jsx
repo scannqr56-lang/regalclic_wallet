@@ -154,9 +154,11 @@ export default function QrPage() {
               {joinUrl}
             </div>
             <p className="text-xs">
-              Ce lien utilise automatiquement l&apos;adresse du site sur lequel vous êtes connecté
-              (ex. Vercel ou votre domaine). En développement local, vous pouvez forcer une autre URL
-              via <code className="rounded bg-muted px-1">VITE_PUBLIC_APP_URL</code> dans <code className="rounded bg-muted px-1">.env</code>.
+              Les liens QR utilisent l&apos;URL canonique
+              {' '}
+              <code className="rounded bg-muted px-1">VITE_PUBLIC_APP_URL</code>
+              {' '}
+              (ex. https://www.regalclic.app) pour fonctionner correctement sur mobile.
             </p>
           </CardContent>
         </Card>

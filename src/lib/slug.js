@@ -14,22 +14,24 @@ export function isValidSlug(slug) {
   return SLUG_REGEX.test(slug) && slug.length >= 2;
 }
 
+/** regalclic.app sans www redirige mal sur certains navigateurs mobiles au scan QR */
+export function normalizeAppBaseUrl(url) {
+  const trimmed = String(url || '').replace(/\/$/, '');
+  if (!trimmed) return '';
+
+  return trimmed.replace(/^http:\/\/regalclic\.app$/i, 'https://www.regalclic.app')
+    .replace(/^https:\/\/regalclic\.app$/i, 'https://www.regalclic.app');
+}
+
 export function getAppBaseUrl() {
+  const fromEnv = import.meta.env.VITE_PUBLIC_APP_URL;
+  if (fromEnv) return normalizeAppBaseUrl(fromEnv);
+
   if (typeof window !== 'undefined') {
-    const origin = window.location.origin.replace(/\/$/, '');
-    const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
-
-    // En prod (Vercel, domaine custom) : toujours l'URL actuelle du navigateur
-    if (!isLocal) return origin;
-
-    // En dev local : permet de pointer vers la prod via .env
-    const fromEnv = import.meta.env.VITE_PUBLIC_APP_URL;
-    if (fromEnv) return String(fromEnv).replace(/\/$/, '');
-    return origin;
+    return normalizeAppBaseUrl(window.location.origin);
   }
 
-  const fromEnv = import.meta.env.VITE_PUBLIC_APP_URL;
-  return fromEnv ? String(fromEnv).replace(/\/$/, '') : '';
+  return '';
 }
 
 export function getJoinUrl(slug) {
