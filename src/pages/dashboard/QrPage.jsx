@@ -156,9 +156,12 @@ export default function QrPage() {
             <p className="text-xs">
               Les liens QR utilisent l&apos;URL canonique
               {' '}
-              <code className="rounded bg-muted px-1">VITE_PUBLIC_APP_URL</code>
+              <code className="rounded bg-muted px-1">https://www.regalclic.app</code>
+              . Si Chrome mobile affiche une erreur, videz les données du site
               {' '}
-              (ex. https://www.regalclic.app) pour fonctionner correctement sur mobile.
+              <code className="rounded bg-muted px-1">regalclic.app</code>
+              {' '}
+              puis retéléchargez ce QR.
             </p>
           </CardContent>
         </Card>

@@ -4,13 +4,37 @@
       "source": "/:path*",
       "has": [{ "type": "host", "value": "regalclic.app" }],
       "destination": "https://www.regalclic.app/:path*",
-      "permanent": true
+      "permanent": false
     }
   ],
   "rewrites": [
     {
       "source": "/((?!assets/).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/join/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0" },
+        { "key": "CDN-Cache-Control", "value": "no-store" },
+        { "key": "Vercel-CDN-Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/((?!assets/).*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, must-revalidate, max-age=0" }
+      ]
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "regalclic.app" }],
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0" },
+        { "key": "CDN-Cache-Control", "value": "no-store" }
+      ]
     }
   ]
 }

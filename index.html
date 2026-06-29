@@ -6,6 +6,20 @@
     <meta name="description" content="Carte de fidélité digitale Apple Wallet et Google Wallet pour restaurants et commerces locaux." />
     <meta name="theme-color" content="#0B1E3F" />
     <title>RegalClic Wallet</title>
+    <script>
+      // Chrome mobile peut conserver une ancienne page 404 sur regalclic.app (sans www).
+      (function () {
+        var host = window.location.hostname;
+        if (host === 'regalclic.app') {
+          window.location.replace(
+            'https://www.regalclic.app'
+              + window.location.pathname
+              + window.location.search
+              + window.location.hash,
+          );
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
