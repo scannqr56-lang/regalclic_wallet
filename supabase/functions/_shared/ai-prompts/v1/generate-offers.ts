@@ -1,4 +1,5 @@
-import { prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
+import { appendCustomerInsightsToPrompt, prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
+import type { AiCustomerInsights } from "../../ai-customer-insights.ts";
 import { AI_SYSTEM_RULES } from "./system.ts";
 
 export const GENERATE_OFFERS_SYSTEM_PROMPT = `${AI_SYSTEM_RULES}
@@ -45,10 +46,11 @@ export function buildGenerateOffersUserPrompt(input: {
   menuJson: unknown;
   profile: Record<string, unknown>;
   loyaltyProgram: Record<string, unknown>;
+  customerInsights?: AiCustomerInsights | null;
 }): string {
   const programType = String(input.loyaltyProgram.type || "points");
 
-  return `Génère 5 offres promotionnelles Wallet pour ce commerce.
+  return appendCustomerInsightsToPrompt(`Génère 5 offres promotionnelles Wallet pour ce commerce.
 
 Programme fidélité :
 - type : ${programType}
@@ -60,5 +62,5 @@ ${JSON.stringify(stripPiiFromProfile(input.profile as Record<string, unknown>), 
 Menu extrait :
 ${JSON.stringify(prepareMenuJsonForPrompt(input.menuJson), null, 2)}
 
-Propose des offres concrètes, prêtes à être transformées en brouillon campagne Wallet (titre, message, libellé court).`;
+Propose des offres concrètes, prêtes à être transformées en brouillon campagne Wallet (titre, message, libellé court).`, input.customerInsights);
 }

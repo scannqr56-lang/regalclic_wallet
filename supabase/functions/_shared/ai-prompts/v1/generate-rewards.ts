@@ -1,4 +1,5 @@
-import { prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
+import { appendCustomerInsightsToPrompt, prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
+import type { AiCustomerInsights } from "../../ai-customer-insights.ts";
 import { AI_SYSTEM_RULES } from "./system.ts";
 
 export const GENERATE_REWARDS_SYSTEM_PROMPT = `${AI_SYSTEM_RULES}
@@ -40,13 +41,14 @@ export function buildGenerateRewardsUserPrompt(input: {
   menuJson: unknown;
   profile: Record<string, unknown>;
   loyaltyProgram: Record<string, unknown>;
+  customerInsights?: AiCustomerInsights | null;
 }): string {
   const programType = String(input.loyaltyProgram.type || "points");
   const currentThreshold = programType === "stamps"
     ? Number(input.loyaltyProgram.stamps_required || 10)
     : Number(input.loyaltyProgram.reward_threshold || 100);
 
-  return `Génère des suggestions de récompenses fidélité pour ce commerce.
+  return appendCustomerInsightsToPrompt(`Génère des suggestions de récompenses fidélité pour ce commerce.
 
 Programme fidélité actuel :
 - type : ${programType}
@@ -60,5 +62,5 @@ ${JSON.stringify(stripPiiFromProfile(input.profile as Record<string, unknown>), 
 Menu extrait (produits et prix) :
 ${JSON.stringify(prepareMenuJsonForPrompt(input.menuJson), null, 2)}
 
-Propose 5 récompenses concrètes et 3 options de seuil adaptées au contexte français.`;
+Propose 5 récompenses concrètes et 3 options de seuil adaptées au contexte français.`, input.customerInsights);
 }

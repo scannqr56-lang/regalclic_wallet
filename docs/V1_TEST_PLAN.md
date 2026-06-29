@@ -201,14 +201,15 @@ Checklist manuelle avant lancement Pro IA. Routes : `/dashboard/ai-assistant/*` 
 
 | # | Test | Attendu |
 |---|------|---------|
-| 11.1.1 | Ouvrir `/dashboard/ai-assistant/upload` | Bandeau quota uploads + activité IA du mois |
-| 11.1.2 | Upload PDF menu texte lisible | Statut `uploaded` ; ligne `ai_usage_logs` action `upload_menu` |
-| 11.1.3 | Upload photo JPEG/PNG menu | Même comportement ; fichier dans `business-private` |
-| 11.1.4 | Fichier `.docx` ou `.txt` | Erreur format non supporté (400) |
-| 11.1.5 | Fichier > 10 Mo | Erreur taille max |
-| 11.1.6 | Fichier vide | Erreur fichier vide |
-| 11.1.7 | Quota uploads Starter épuisé | Bandeau ambre + upload bloqué |
-| 11.1.8 | `AI_ASSISTANT_ENABLED=false` | Bandeau « Assistant indisponible » |
+| 11.1.1 | Ouvrir `/dashboard/ai-assistant` | Hub MVP : parcours 5 étapes + bouton « Générer mon plan fidélité » |
+| 11.1.2 | Ouvrir `/dashboard/ai-assistant/upload` | Bandeau quota uploads + activité IA du mois |
+| 11.1.3 | Upload PDF menu texte lisible | Statut `uploaded` ; ligne `ai_usage_logs` action `upload_menu` |
+| 11.1.4 | Upload photo JPEG/PNG menu | Même comportement ; fichier dans `business-private` |
+| 11.1.5 | Fichier `.docx` ou `.txt` | Erreur format non supporté (400) |
+| 11.1.6 | Fichier > 10 Mo | Erreur taille max |
+| 11.1.7 | Fichier vide | Erreur fichier vide |
+| 11.1.8 | Quota uploads Starter épuisé | Bandeau ambre + upload bloqué |
+| 11.1.9 | `AI_ASSISTANT_ENABLED=false` | Bandeau « Assistant indisponible » |
 
 ### 11.2 Extraction menu
 
@@ -236,6 +237,7 @@ Checklist manuelle avant lancement Pro IA. Routes : `/dashboard/ai-assistant/*` 
 
 | # | Test | Attendu |
 |---|------|---------|
+| 11.4.0 | Hub → « Générer mon plan fidélité » | 1 quota consommé ; batch `full_plan` ; récompenses + offres + notifs + calendrier 30 j |
 | 11.4.1 | Générer récompenses `/ai-assistant/rewards` | Batch `completed` ; ≥ 5 suggestions `reward` + seuils `threshold` |
 | 11.4.2 | Générer offres `/ai-assistant/offers` | Suggestions type `offer` en `pending` |
 | 11.4.3 | Générer notifications `/ai-assistant/notifications` | Suggestions type `notification` ; titres ≤ 40 car., corps ≤ 120 |
@@ -289,6 +291,19 @@ Checklist manuelle avant lancement Pro IA. Routes : `/dashboard/ai-assistant/*` 
 | 11.8.2 | Après extraction + génération | Lignes dans tableau « Par commerce » |
 | 11.8.3 | Seuil `AI_MONTHLY_COST_ALERT_USD` dépassé | Bandeau alerte rouge admin |
 | 11.8.4 | Restaurateur page upload | « X appels IA ce mois » (sans coût USD) |
+
+| 11.8.5 | `/dashboard/ai-assistant/history` | Liste des lots avec statut, type et lien validation |
+
+### 11.10 Insights clients V2 (preview)
+
+| # | Test | Attendu |
+|---|------|---------|
+| 11.10.1 | Hub → panneau « Insights clients » | Segments fidèles / inactifs / nouveaux + scans 30 j |
+| 11.10.2 | Commerce sans clients | Message invitant à afficher le QR |
+| 11.10.3 | Après scans réels | Compteurs cohérents avec `/dashboard/customers` |
+| 11.10.4 | Génération plan complet | Suggestions avec `target_segment` adapté (inactive si volume élevé) |
+| 11.10.5 | Suggestions pending cette semaine | Bandeau « offres prêtes » sur le hub |
+| 11.10.6 | Panneau feuille de route | Liste V2/V3 + lien doc backlog |
 
 ### 11.9 Tests automatisés (CI locale)
 

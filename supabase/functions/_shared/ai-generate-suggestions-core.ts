@@ -20,6 +20,7 @@ import {
 import {
   parseNotificationsGenerationResponse,
   suggestionsFromNotifications,
+  type NotificationsGenerationResult,
 } from "./ai-notifications-schema.ts";
 import {
   parseOffersGenerationResponse,
@@ -47,6 +48,10 @@ import {
   rowToProfileInput,
   validateRestaurantProfileInput,
 } from "./ai-restaurant-profile-schema.ts";
+import {
+  fetchAiCustomerInsights,
+  type AiCustomerInsights,
+} from "./ai-customer-insights.ts";
 
 const SUGGESTIONS_MODEL = Deno.env.get("AI_MODEL_SUGGESTIONS") || "gpt-4o-mini";
 
@@ -55,6 +60,7 @@ type GenerationContext = {
   profileRow: { id: string };
   profile: ReturnType<typeof rowToProfileInput>;
   loyaltyProgram: Record<string, unknown>;
+  customerInsights: AiCustomerInsights | null;
 };
 
 async function loadGenerationContext(
@@ -116,7 +122,9 @@ async function loadGenerationContext(
     throw new Error("Configurez votre programme fidélité avant de générer");
   }
 
-  return { menuUpload, profileRow, profile, loyaltyProgram };
+  const customerInsights = await fetchAiCustomerInsights(userClient, businessId);
+
+  return { menuUpload, profileRow, profile, loyaltyProgram, customerInsights };
 }
 
 function suggestionsFromRewards(
@@ -250,6 +258,70 @@ async function persistCalendarGenerationBatch(params: {
   };
 }
 
+async function persistFullPlanBatch(params: {
+  admin: SupabaseClient;
+  businessId: string;
+  userId: string;
+  quotaPlan: string;
+  batchId: string;
+  generated: {
+    rewards: RewardsGenerationResult;
+    offers: OffersGenerationResult;
+    notifications: NotificationsGenerationResult;
+    calendar: CalendarGenerationResult;
+  };
+  suggestionRows: Record<string, unknown>[];
+  calendarRows: Record<string, unknown>[];
+  modelUsed: string;
+}) {
+  if (params.suggestionRows.length) {
+    const { error: insertSuggestionsError } = await params.admin
+      .from("ai_suggestions")
+      .insert(params.suggestionRows);
+    if (insertSuggestionsError) throw new Error(insertSuggestionsError.message);
+  }
+
+  if (params.calendarRows.length) {
+    const { error: insertCalendarError } = await params.admin
+      .from("ai_marketing_calendar_items")
+      .insert(params.calendarRows);
+    if (insertCalendarError) throw new Error(insertCalendarError.message);
+  }
+
+  const { data: completedBatch, error: updateError } = await params.admin
+    .from("ai_suggestion_batches")
+    .update({
+      status: "completed",
+      model_used: params.modelUsed,
+      raw_output: params.generated,
+      error_message: null,
+    })
+    .eq("id", params.batchId)
+    .select()
+    .single();
+
+  if (updateError) throw new Error(updateError.message);
+
+  await markStarterTrialUsedIfNeeded(params.admin, params.businessId, params.quotaPlan);
+
+  const { data: suggestions } = await params.admin
+    .from("ai_suggestions")
+    .select("*")
+    .eq("batch_id", params.batchId);
+
+  const { data: calendarItems } = await params.admin
+    .from("ai_marketing_calendar_items")
+    .select("*")
+    .eq("batch_id", params.batchId);
+
+  return {
+    batch: completedBatch,
+    suggestions: suggestions ?? [],
+    calendarItems: calendarItems ?? [],
+    generated: params.generated,
+  };
+}
+
 async function createProcessingBatch(
   admin: SupabaseClient,
   params: {
@@ -327,6 +399,7 @@ export async function generateRewardSuggestions(
         menuJson: context.menuUpload.extracted_json,
         profile: profileInputToRow(businessId, context.profile),
         loyaltyProgram: context.loyaltyProgram,
+        customerInsights: context.customerInsights,
       }),
       parse: (content) => parseRewardsGenerationResponse(content, programType),
       onProviderCall: createBatchUsageLogger(admin, businessId, userId, batch.id),
@@ -376,6 +449,7 @@ export async function generateOfferSuggestions(
         menuJson: context.menuUpload.extracted_json,
         profile: profileInputToRow(businessId, context.profile),
         loyaltyProgram: context.loyaltyProgram,
+        customerInsights: context.customerInsights,
       }),
       parse: (content) => parseOffersGenerationResponse(content, programType),
       onProviderCall: createBatchUsageLogger(admin, businessId, userId, batch.id),
@@ -425,6 +499,7 @@ export async function generateNotificationSuggestions(
         menuJson: context.menuUpload.extracted_json,
         profile: profileInputToRow(businessId, context.profile),
         loyaltyProgram: context.loyaltyProgram,
+        customerInsights: context.customerInsights,
       }),
       parse: (content) => parseNotificationsGenerationResponse(content, programType),
       onProviderCall: createBatchUsageLogger(admin, businessId, userId, batch.id),
@@ -476,6 +551,7 @@ export async function generateCalendarSuggestions(
         profile: profileInputToRow(businessId, context.profile),
         loyaltyProgram: context.loyaltyProgram,
         startDate,
+        customerInsights: context.customerInsights,
       }),
       parse: (content) => parseCalendarGenerationResponse(content, startDate, programType),
       onProviderCall: createBatchUsageLogger(admin, businessId, userId, batch.id),
@@ -493,6 +569,101 @@ export async function generateCalendarSuggestions(
       generated,
       calendarRows,
       modelUsed: aiResult.model,
+    });
+  } catch (error) {
+    return await failGenerationBatch(admin, batch.id, error);
+  }
+}
+
+export async function generateFullPlanSuggestions(
+  admin: SupabaseClient,
+  userClient: SupabaseClient,
+  businessId: string,
+  userId: string,
+  menuUploadId?: string,
+) {
+  const quota = await assertGenerationAllowed(admin, businessId);
+
+  const context = await loadGenerationContext(userClient, businessId, menuUploadId);
+  const programType = context.loyaltyProgram.type === "stamps" ? "stamps" : "points";
+  const profileRow = profileInputToRow(businessId, context.profile);
+  const startDate = new Date().toISOString().slice(0, 10);
+
+  const batch = await createProcessingBatch(admin, {
+    businessId,
+    userId,
+    batchType: "full_plan",
+    context,
+  });
+
+  const logProviderCall = createBatchUsageLogger(admin, businessId, userId, batch.id);
+
+  try {
+    const promptContext = {
+      menuJson: context.menuUpload.extracted_json,
+      profile: profileRow,
+      loyaltyProgram: context.loyaltyProgram,
+      customerInsights: context.customerInsights,
+    };
+
+    const [rewardsResult, offersResult, notificationsResult, calendarResult] =
+      await Promise.all([
+        runOpenAiJsonWithRetry({
+          model: SUGGESTIONS_MODEL,
+          systemPrompt: GENERATE_REWARDS_SYSTEM_PROMPT,
+          userPrompt: buildGenerateRewardsUserPrompt(promptContext),
+          parse: (content) => parseRewardsGenerationResponse(content, programType),
+          onProviderCall: logProviderCall,
+        }),
+        runOpenAiJsonWithRetry({
+          model: SUGGESTIONS_MODEL,
+          systemPrompt: GENERATE_OFFERS_SYSTEM_PROMPT,
+          userPrompt: buildGenerateOffersUserPrompt(promptContext),
+          parse: (content) => parseOffersGenerationResponse(content, programType),
+          onProviderCall: logProviderCall,
+        }),
+        runOpenAiJsonWithRetry({
+          model: SUGGESTIONS_MODEL,
+          systemPrompt: GENERATE_NOTIFICATIONS_SYSTEM_PROMPT,
+          userPrompt: buildGenerateNotificationsUserPrompt(promptContext),
+          parse: (content) => parseNotificationsGenerationResponse(content, programType),
+          onProviderCall: logProviderCall,
+        }),
+        runOpenAiJsonWithRetry({
+          model: SUGGESTIONS_MODEL,
+          systemPrompt: GENERATE_CALENDAR_SYSTEM_PROMPT,
+          userPrompt: buildGenerateCalendarUserPrompt({
+            ...promptContext,
+            startDate,
+          }),
+          parse: (content) =>
+            parseCalendarGenerationResponse(content, startDate, programType),
+          onProviderCall: logProviderCall,
+        }),
+      ]);
+
+    const rewards = rewardsResult.parsed;
+    const offers = offersResult.parsed;
+    const notifications = notificationsResult.parsed;
+    const calendar = calendarResult.parsed;
+
+    const suggestionRows = [
+      ...suggestionsFromRewards(businessId, batch.id, programType, rewards),
+      ...suggestionsFromOffers(businessId, batch.id, offers),
+      ...suggestionsFromNotifications(businessId, batch.id, notifications),
+    ];
+    const calendarRows = calendarRowsFromGeneration(businessId, batch.id, calendar);
+
+    return await persistFullPlanBatch({
+      admin,
+      businessId,
+      userId,
+      quotaPlan: quota.plan,
+      batchId: batch.id,
+      generated: { rewards, offers, notifications, calendar },
+      suggestionRows,
+      calendarRows,
+      modelUsed: SUGGESTIONS_MODEL,
     });
   } catch (error) {
     return await failGenerationBatch(admin, batch.id, error);

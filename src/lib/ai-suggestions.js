@@ -2,6 +2,21 @@ import { supabase } from '@/lib/supabase';
 
 const AI_GENERATE_SUGGESTIONS_FUNCTION = 'ai-generate-suggestions';
 const GENERATE_TIMEOUT_MS = 150_000;
+const FULL_PLAN_TIMEOUT_MS = 600_000;
+
+export const BATCH_TYPE_LABELS = {
+  full_plan: 'Plan complet',
+  rewards_only: 'Récompenses',
+  offers_only: 'Offres promo',
+  notifications_only: 'Notifications',
+  calendar_only: 'Calendrier',
+};
+
+export const BATCH_STATUS_LABELS = {
+  processing: 'En cours',
+  completed: 'Terminé',
+  failed: 'Échoué',
+};
 
 export const SUGGESTION_TYPE_LABELS = {
   reward: 'Récompense',
@@ -56,7 +71,7 @@ function getSupabaseConfig() {
   return { url, anonKey };
 }
 
-async function invokeGenerateSuggestions(action, payload = {}) {
+async function invokeGenerateSuggestions(action, payload = {}, timeoutMs = GENERATE_TIMEOUT_MS) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error('Session expirée');
 
@@ -64,7 +79,7 @@ async function invokeGenerateSuggestions(action, payload = {}) {
   const endpoint = `${url.replace(/\/$/, '')}/functions/v1/${AI_GENERATE_SUGGESTIONS_FUNCTION}`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(endpoint, {
@@ -122,6 +137,36 @@ export function generateNotificationSuggestions(businessId, menuUploadId) {
     business_id: businessId,
     menu_upload_id: menuUploadId,
   });
+}
+
+export function generateFullPlanSuggestions(businessId, menuUploadId) {
+  return invokeGenerateSuggestions('full_plan', {
+    business_id: businessId,
+    menu_upload_id: menuUploadId,
+  }, FULL_PLAN_TIMEOUT_MS);
+}
+
+export async function fetchSuggestionBatchSummary(businessId, batchId) {
+  const [suggestionsResult, calendarResult] = await Promise.all([
+    supabase
+      .from('ai_suggestions')
+      .select('id', { count: 'exact', head: true })
+      .eq('business_id', businessId)
+      .eq('batch_id', batchId),
+    supabase
+      .from('ai_marketing_calendar_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('business_id', businessId)
+      .eq('batch_id', batchId),
+  ]);
+
+  if (suggestionsResult.error) throw suggestionsResult.error;
+  if (calendarResult.error) throw calendarResult.error;
+
+  return {
+    suggestions_count: suggestionsResult.count ?? 0,
+    calendar_count: calendarResult.count ?? 0,
+  };
 }
 
 export async function fetchSuggestionBatches(businessId) {

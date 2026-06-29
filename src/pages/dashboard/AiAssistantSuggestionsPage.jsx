@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Filter, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import AiAssistantNav from '@/components/ai-assistant/AiAssistantNav';
 import SuggestionCard from '@/components/ai-assistant/SuggestionCard';
 import SuggestionEditModal from '@/components/ai-assistant/SuggestionEditModal';
 import CalendarItemCard from '@/components/ai-assistant/CalendarItemCard';
@@ -294,20 +295,7 @@ export default function AiAssistantSuggestionsPage() {
       description="Hub de décision : utilisez, modifiez ou ignorez chaque suggestion"
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/rewards">Récompenses</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/offers">Offres promo</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/notifications">Notifications</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/dashboard/ai-assistant/calendar">Calendrier</Link>
-          </Button>
-        </div>
+        <AiAssistantNav />
 
         <Card>
           <CardHeader>

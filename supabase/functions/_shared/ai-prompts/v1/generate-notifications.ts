@@ -1,4 +1,5 @@
-import { prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
+import { appendCustomerInsightsToPrompt, prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
+import type { AiCustomerInsights } from "../../ai-customer-insights.ts";
 import { AI_SYSTEM_RULES } from "./system.ts";
 
 export const GENERATE_NOTIFICATIONS_SYSTEM_PROMPT = `${AI_SYSTEM_RULES}
@@ -42,10 +43,11 @@ export function buildGenerateNotificationsUserPrompt(input: {
   menuJson: unknown;
   profile: Record<string, unknown>;
   loyaltyProgram: Record<string, unknown>;
+  customerInsights?: AiCustomerInsights | null;
 }): string {
   const programType = String(input.loyaltyProgram.type || "points");
 
-  return `Génère 10 notifications Wallet courtes pour ce commerce.
+  return appendCustomerInsightsToPrompt(`Génère 10 notifications Wallet courtes pour ce commerce.
 
 Programme fidélité : ${programType}
 Ton souhaité : ${input.profile.tone_of_voice || "chaleureux"}
@@ -56,5 +58,5 @@ ${JSON.stringify(stripPiiFromProfile(input.profile as Record<string, unknown>), 
 Menu :
 ${JSON.stringify(prepareMenuJsonForPrompt(input.menuJson), null, 2)}
 
-Les messages doivent être prêts à alimenter une campagne Wallet (message + libellé court).`;
+Les messages doivent être prêts à alimenter une campagne Wallet (message + libellé court).`, input.customerInsights);
 }

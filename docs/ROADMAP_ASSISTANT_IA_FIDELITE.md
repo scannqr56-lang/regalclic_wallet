@@ -884,7 +884,17 @@ ai_trial_used boolean not null default false
 
 ### PHASE 17 — Backlog V2 / V3
 
-**V2** :
+**Statut** : backlog documenté + fondations V2 preview livrées (juin 2026).
+
+Voir [`docs/BACKLOG_ASSISTANT_IA_V2_V3.md`](./BACKLOG_ASSISTANT_IA_V2_V3.md).
+
+**Preview livré** :
+- RPC `get_ai_customer_insights` (segments fidèles / inactifs / nouveaux)
+- Contexte scans réels injecté dans les prompts de génération
+- Bandeau rappel « offres prêtes » sur le hub
+- Panneau feuille de route V2/V3
+
+**V2** (backlog) :
 - Suggestions basées sur `loyalty_transactions` / scans réels
 - Clients inactifs (dernière visite > X jours)
 - Segmentation simple (fidèles vs nouveaux)

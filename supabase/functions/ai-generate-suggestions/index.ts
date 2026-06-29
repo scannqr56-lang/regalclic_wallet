@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
   generateCalendarSuggestions,
+  generateFullPlanSuggestions,
   generateNotificationSuggestions,
   generateOfferSuggestions,
   generateRewardSuggestions,
@@ -83,6 +84,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, quota });
     }
 
+    if (action === "customer_insights") {
+      const { data, error } = await userClient.rpc("get_ai_customer_insights", {
+        p_business_id: businessId,
+      });
+      if (error) throw new Error(error.message);
+      return jsonResponse({ ok: true, insights: data });
+    }
+
     if (action === "rewards") {
       const result = await generateRewardSuggestions(
         admin,
@@ -146,6 +155,24 @@ Deno.serve(async (req) => {
       return jsonResponse({
         ok: true,
         batch: result.batch,
+        calendar_items: result.calendarItems,
+        generated: result.generated,
+      });
+    }
+
+    if (action === "full_plan") {
+      const result = await generateFullPlanSuggestions(
+        admin,
+        userClient,
+        businessId,
+        user.id,
+        menuUploadId,
+      );
+
+      return jsonResponse({
+        ok: true,
+        batch: result.batch,
+        suggestions: result.suggestions,
         calendar_items: result.calendarItems,
         generated: result.generated,
       });

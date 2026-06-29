@@ -9,7 +9,7 @@ const NAV = [
   { to: '/dashboard/business', label: 'Commerce', icon: Store },
   { to: '/dashboard/program', label: 'Programme', icon: Sparkles },
   { to: '/dashboard/offers', label: 'Offres promo', icon: Megaphone },
-  { to: '/dashboard/ai-assistant/upload', label: 'Assistant IA', icon: Bot, matchPrefix: '/dashboard/ai-assistant' },
+  { to: '/dashboard/ai-assistant', label: 'Assistant IA', icon: Bot, matchPrefix: '/dashboard/ai-assistant' },
   { to: '/dashboard/qr', label: 'QR inscription', icon: QrCode },
   { to: '/dashboard/scan', label: 'Scanner', icon: ScanLine },
   { to: '/dashboard/customers', label: 'Clients', icon: Users },

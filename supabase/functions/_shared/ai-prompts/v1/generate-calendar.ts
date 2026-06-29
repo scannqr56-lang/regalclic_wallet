@@ -1,4 +1,5 @@
-import { prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
+import { appendCustomerInsightsToPrompt, prepareMenuJsonForPrompt, stripPiiFromProfile } from "../../ai-schemas/prompt-context.ts";
+import type { AiCustomerInsights } from "../../ai-customer-insights.ts";
 import { AI_SYSTEM_RULES } from "./system.ts";
 
 export const GENERATE_CALENDAR_SYSTEM_PROMPT = `${AI_SYSTEM_RULES}
@@ -36,10 +37,11 @@ export function buildGenerateCalendarUserPrompt(input: {
   profile: Record<string, unknown>;
   loyaltyProgram: Record<string, unknown>;
   startDate: string;
+  customerInsights?: AiCustomerInsights | null;
 }): string {
   const programType = String(input.loyaltyProgram.type || "points");
 
-  return `Génère un calendrier marketing sur 30 jours.
+  return appendCustomerInsightsToPrompt(`Génère un calendrier marketing sur 30 jours.
 
 Date de début (jour 1) : ${input.startDate}
 Programme fidélité : ${programType}
@@ -52,5 +54,5 @@ Menu :
 ${JSON.stringify(prepareMenuJsonForPrompt(input.menuJson), null, 2)}
 
 Répartis les actions sur les 30 jours (scheduled_date du ${input.startDate} inclus, +29 jours).
-Propose des actions réalistes pour ce commerce — offres, rappels, nouveautés, fidélisation.`;
+Propose des actions réalistes pour ce commerce — offres, rappels, nouveautés, fidélisation.`, input.customerInsights);
 }

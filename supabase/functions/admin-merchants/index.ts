@@ -51,6 +51,45 @@ async function assertPlatformAdmin(
   }
 }
 
+async function assertMerchantActionAllowed(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  currentUserId: string,
+  actionLabel: string,
+) {
+  if (userId === currentUserId) {
+    throw new Error(`Impossible de ${actionLabel} votre propre compte admin`);
+  }
+
+  const { data: byUserId, error: userIdError } = await admin
+    .from("platform_admins")
+    .select("email")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (userIdError) throw new Error(userIdError.message);
+  if (byUserId) {
+    throw new Error(`Impossible de ${actionLabel} un compte administrateur plateforme`);
+  }
+
+  const { data: userData, error: userError } = await admin.auth.admin.getUserById(userId);
+  if (userError) throw new Error(userError.message);
+
+  const email = userData.user?.email?.trim().toLowerCase();
+  if (email) {
+    const { data: byEmail, error: emailError } = await admin
+      .from("platform_admins")
+      .select("email")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (emailError) throw new Error(emailError.message);
+    if (byEmail) {
+      throw new Error(`Impossible de ${actionLabel} un compte administrateur plateforme`);
+    }
+  }
+}
+
 async function listMerchants(admin: ReturnType<typeof createClient>) {
   const { data: merchants, error } = await admin
     .from("merchant_accounts")
@@ -254,6 +293,8 @@ Deno.serve(async (req) => {
       const reason = String(body.reason || "").trim() || null;
       if (!userId) return jsonResponse({ error: "user_id requis" }, 400);
 
+      await assertMerchantActionAllowed(admin, userId, user.id, "désactiver");
+
       const { error: merchantError } = await admin
         .from("merchant_accounts")
         .update({
@@ -304,9 +345,7 @@ Deno.serve(async (req) => {
       const userId = String(body.user_id || "").trim();
       if (!userId) return jsonResponse({ error: "user_id requis" }, 400);
 
-      if (userId === user.id) {
-        return jsonResponse({ error: "Impossible de supprimer votre propre compte admin" }, 400);
-      }
+      await assertMerchantActionAllowed(admin, userId, user.id, "supprimer");
 
       const { data: businesses, error: businessListError } = await admin
         .from("businesses")

@@ -15,6 +15,8 @@ import CustomersPage from '@/pages/dashboard/CustomersPage';
 import CustomerDetailPage from '@/pages/dashboard/CustomerDetailPage';
 import OffersPage from '@/pages/dashboard/OffersPage';
 import AiAssistantUploadPage from '@/pages/dashboard/AiAssistantUploadPage';
+import AiAssistantHomePage from '@/pages/dashboard/AiAssistantHomePage';
+import AiAssistantHistoryPage from '@/pages/dashboard/AiAssistantHistoryPage';
 import AiAssistantMenuPage from '@/pages/dashboard/AiAssistantMenuPage';
 import AiAssistantProfilePage from '@/pages/dashboard/AiAssistantProfilePage';
 import AiAssistantSuggestionsPage from '@/pages/dashboard/AiAssistantSuggestionsPage';
@@ -100,6 +102,22 @@ export default function App() {
               element={
                 <MerchantProtectedRoute>
                   <OffersPage />
+                </MerchantProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant"
+              element={
+                <MerchantProtectedRoute>
+                  <AiAssistantHomePage />
+                </MerchantProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai-assistant/history"
+              element={
+                <MerchantProtectedRoute>
+                  <AiAssistantHistoryPage />
                 </MerchantProtectedRoute>
               }
             />

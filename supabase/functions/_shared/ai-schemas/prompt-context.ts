@@ -1,5 +1,7 @@
 /** Préparation sécurisée du contexte envoyé aux prompts (taille, PII). */
 
+import { formatCustomerInsightsForPrompt, type AiCustomerInsights } from "../ai-customer-insights.ts";
+
 const MAX_MENU_ITEMS = 80;
 const PII_KEYS = new Set([
   "email",
@@ -62,4 +64,13 @@ export function prepareMenuJsonForPrompt(menuJson: unknown): unknown {
   }
 
   return result;
+}
+
+export function appendCustomerInsightsToPrompt(
+  basePrompt: string,
+  customerInsights?: AiCustomerInsights | null,
+): string {
+  const block = formatCustomerInsightsForPrompt(customerInsights);
+  if (!block) return basePrompt;
+  return `${basePrompt}\n\n${block}`;
 }
