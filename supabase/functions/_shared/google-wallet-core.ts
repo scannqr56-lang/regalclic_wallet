@@ -15,6 +15,10 @@ import {
   type WalletCardViewModel,
 } from "./wallet-card-model.ts";
 import type { WalletNotificationPlan } from "./wallet-notification-core.ts";
+import {
+  buildGoogleWalletNotifyMessageId,
+  prepareGoogleWalletNotifyTexts,
+} from "./wallet-notification-text.ts";
 
 export class GoogleWalletError extends Error {
   constructor(message: string, public status = 400) {
@@ -262,7 +266,7 @@ export async function patchGoogleLoyaltyObject(
 
 export function buildGoogleSyncPatchBody(
   vm: WalletCardViewModel,
-  notification?: WalletNotificationPlan,
+  _notification?: WalletNotificationPlan,
 ): Record<string, unknown> {
   const fields = mapViewModelToGoogleFields(vm);
   const linksModuleData = buildGoogleLinksModule(vm);
@@ -278,21 +282,65 @@ export function buildGoogleSyncPatchBody(
     body.imageModulesData = fields.imageModulesData;
   }
 
-  const plan = notification;
-  if (plan?.notifyGoogle && plan.google.notify && plan.google.body) {
-    body.messages = [{
-      id: `sync-${vm.membershipId.slice(0, 8)}-${plan.kind}-${vm.balance}-${Date.now()}`,
-      header: plan.google.header,
-      body: plan.google.body,
-      messageType: "TEXT_AND_NOTIFY",
-    }];
-  }
-
   if (linksModuleData) {
     body.linksModuleData = linksModuleData;
   }
 
   return body;
+}
+
+/**
+ * Envoie une notification Android via l'API addMessage (TEXT_AND_NOTIFY).
+ * PATCH seul ne déclenche pas toujours le push personnalisé — addMessage est requis.
+ */
+export async function addGoogleWalletNotifyMessage(
+  accessToken: string,
+  objectId: string,
+  params: {
+    membershipId: string;
+    header: string;
+    body: string;
+    kind: string;
+    notifyBatchId?: string;
+  },
+): Promise<void> {
+  const { header, body } = prepareGoogleWalletNotifyTexts(params.header, params.body);
+  if (!body) {
+    throw new GoogleWalletError("Message de notification vide", 400);
+  }
+
+  const messageId = buildGoogleWalletNotifyMessageId(
+    params.membershipId,
+    params.kind,
+    params.notifyBatchId,
+  );
+
+  const message = {
+    id: messageId,
+    messageType: "TEXT_AND_NOTIFY",
+    header,
+    body,
+    localizedHeader: {
+      defaultValue: { language: "fr-FR", value: header },
+    },
+    localizedBody: {
+      defaultValue: { language: "fr-FR", value: body },
+    },
+  };
+
+  const base = "https://walletobjects.googleapis.com/walletobjects/v1";
+  const res = await fetch(`${base}/loyaltyObject/${encodeURIComponent(objectId)}/addMessage`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  if (!res.ok) {
+    throw new GoogleWalletError(`addMessage Google impossible: ${await res.text()}`, 500);
+  }
 }
 
 export async function buildGoogleSaveUrl(classId: string, objectId: string): Promise<string> {

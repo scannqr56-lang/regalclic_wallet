@@ -26,9 +26,9 @@ import {
   updateMerchantAccount,
 } from '@/lib/admin-merchants';
 import AdminAiUsagePanel from '@/components/admin/AdminAiUsagePanel';
-
-const textareaClassName =
-  'flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+import ResponsiveModal from '@/components/ui/responsive-modal';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
+import { touchSelectClassName, touchTextareaClassName } from '@/components/ui/form-layout';
 
 const AI_PLAN_OPTIONS = [
   { value: 'starter', label: 'Starter (1 essai IA)' },
@@ -139,17 +139,19 @@ function CreateMerchantForm({ onCreated }) {
             <Label htmlFor="merchant-notes">Notes internes</Label>
             <textarea
               id="merchant-notes"
-              className={textareaClassName}
+              className={touchTextareaClassName}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Contact, pack souscrit, etc."
             />
           </div>
           <div className="md:col-span-2">
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Créer le compte
-            </Button>
+            <ResponsiveActions>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Créer le compte
+              </Button>
+            </ResponsiveActions>
           </div>
         </form>
       </CardContent>
@@ -157,7 +159,7 @@ function CreateMerchantForm({ onCreated }) {
   );
 }
 
-function MerchantEditPanel({ merchant, onClose, onSaved }) {
+function MerchantEditModal({ merchant, open, onClose, onSaved }) {
   const [displayName, setDisplayName] = useState(merchant.display_name || '');
   const [notes, setNotes] = useState(merchant.notes || '');
   const [password, setPassword] = useState('');
@@ -193,19 +195,41 @@ function MerchantEditPanel({ merchant, onClose, onSaved }) {
   });
 
   return (
-    <Card className="border-rc-navy/20">
-      <CardHeader>
-        <CardTitle className="text-base">Modifier {merchant.email}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
+    <ResponsiveModal
+      open={open}
+      onClose={onClose}
+      title={`Modifier ${merchant.email}`}
+      description="Compte commerçant et paramètres du commerce associé."
+      footer={(
+        <ResponsiveActions className="sm:justify-end">
+          <Button
+            type="button"
+            disabled={saveMutation.isPending}
+            onClick={() => saveMutation.mutate()}
+          >
+            {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Enregistrer
+          </Button>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
+        </ResponsiveActions>
+      )}
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Nom affiché</Label>
-            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            <Label htmlFor="edit-display-name">Nom affiché</Label>
+            <Input
+              id="edit-display-name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
-            <Label>Nouveau mot de passe (optionnel)</Label>
+            <Label htmlFor="edit-password">Nouveau mot de passe (optionnel)</Label>
             <Input
+              id="edit-password"
               type="text"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -214,9 +238,10 @@ function MerchantEditPanel({ merchant, onClose, onSaved }) {
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Notes internes</Label>
+          <Label htmlFor="edit-notes">Notes internes</Label>
           <textarea
-            className={textareaClassName}
+            id="edit-notes"
+            className={touchTextareaClassName}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
@@ -224,27 +249,46 @@ function MerchantEditPanel({ merchant, onClose, onSaved }) {
         {merchant.business ? (
           <div className="space-y-3 rounded-lg border p-4">
             <p className="text-sm font-medium text-slate-900">Commerce</p>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Nom</Label>
-                <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+                <Label htmlFor="edit-business-name">Nom</Label>
+                <Input
+                  id="edit-business-name"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Slug</Label>
-                <Input value={businessSlug} onChange={(e) => setBusinessSlug(e.target.value)} />
+                <Label htmlFor="edit-business-slug">Slug</Label>
+                <Input
+                  id="edit-business-slug"
+                  value={businessSlug}
+                  onChange={(e) => setBusinessSlug(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Téléphone</Label>
-                <Input value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} />
+                <Label htmlFor="edit-business-phone">Téléphone</Label>
+                <Input
+                  id="edit-business-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={businessPhone}
+                  onChange={(e) => setBusinessPhone(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Ville</Label>
-                <Input value={businessCity} onChange={(e) => setBusinessCity(e.target.value)} />
+                <Label htmlFor="edit-business-city">Ville</Label>
+                <Input
+                  id="edit-business-city"
+                  value={businessCity}
+                  onChange={(e) => setBusinessCity(e.target.value)}
+                />
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Plan Assistant IA</Label>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="edit-business-plan">Plan Assistant IA</Label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  id="edit-business-plan"
+                  className={touchSelectClassName}
                   value={businessPlan}
                   onChange={(e) => setBusinessPlan(e.target.value)}
                 >
@@ -254,9 +298,10 @@ function MerchantEditPanel({ merchant, onClose, onSaved }) {
                 </select>
               </div>
               {merchant.business.plan === 'starter' && merchant.business.ai_trial_used ? (
-                <label className="flex items-center gap-2 text-sm md:col-span-2">
+                <label className="flex items-start gap-3 text-sm sm:col-span-2">
                   <input
                     type="checkbox"
+                    className="mt-1 h-4 w-4 shrink-0"
                     checked={resetAiTrial}
                     onChange={(e) => setResetAiTrial(e.target.checked)}
                   />
@@ -270,17 +315,8 @@ function MerchantEditPanel({ merchant, onClose, onSaved }) {
             Le commerce n&apos;a pas encore été configuré par le restaurateur.
           </p>
         )}
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            Enregistrer
-          </Button>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </ResponsiveModal>
   );
 }
 
@@ -380,22 +416,22 @@ export default function AdminMerchantsPage() {
         ) : null}
 
         <Card>
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-base">Commerçants ({filteredMerchants.length})</CardTitle>
               <CardDescription>Liste de tous les comptes provisionnés.</CardDescription>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <Input
                 placeholder="Rechercher…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-48"
+                className="h-11 w-full sm:w-48"
               />
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                className="h-11 w-full sm:w-auto"
                 onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-merchants'] })}
               >
                 <RefreshCw className="h-4 w-4" />
@@ -411,11 +447,11 @@ export default function AdminMerchantsPage() {
             ) : (
               <ul className="space-y-3">
                 {filteredMerchants.map((merchant) => (
-                  <li key={merchant.user_id} className="rounded-lg border bg-white p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
+                  <li key={merchant.user_id} className="rounded-xl border bg-white p-4">
+                    <div className="flex flex-col gap-4">
+                      <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium text-slate-900">{merchant.email}</p>
+                          <p className="break-all font-medium text-slate-900">{merchant.email}</p>
                           <StatusBadge merchant={merchant} />
                           {merchant.business ? <AiPlanBadge business={merchant.business} /> : null}
                         </div>
@@ -436,7 +472,7 @@ export default function AdminMerchantsPage() {
                           <p className="text-xs text-slate-500">Note : {merchant.notes}</p>
                         ) : null}
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <ResponsiveActions className="border-t border-slate-100 pt-3 sm:border-0 sm:pt-0">
                         <Button
                           type="button"
                           size="sm"
@@ -472,7 +508,7 @@ export default function AdminMerchantsPage() {
                           <Trash2 className="h-4 w-4" />
                           Supprimer
                         </Button>
-                      </div>
+                      </ResponsiveActions>
                     </div>
                   </li>
                 ))}
@@ -482,8 +518,10 @@ export default function AdminMerchantsPage() {
         </Card>
 
         {editingMerchant ? (
-          <MerchantEditPanel
+          <MerchantEditModal
+            key={editingMerchant.user_id}
             merchant={editingMerchant}
+            open={Boolean(editingMerchant)}
             onClose={() => setEditingId(null)}
             onSaved={() => queryClient.invalidateQueries({ queryKey: ['admin-merchants'] })}
           />

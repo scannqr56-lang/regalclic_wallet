@@ -6,6 +6,11 @@
 import type { ApplePassFieldSet } from "./wallet-card-model.ts";
 import type { WalletCardViewModel } from "./wallet-card-model.ts";
 import {
+  buildApplePromoNotifyFieldValue,
+  prepareGoogleWalletNotifyTexts,
+  sanitizeWalletNotifyText,
+} from "./wallet-notification-text.ts";
+import {
   deriveWalletUpdateContext,
   type WalletNotificationMode,
   type WalletUpdateContext,
@@ -44,9 +49,13 @@ export type AppleNotificationHints = {
   notifyBalance: boolean;
   notifyReward: boolean;
   notifyPromo?: boolean;
+  /** Évite que le bandeau récompense prenne le dessus sur une notif promo. */
+  suppressRewardBannerNotify?: boolean;
   balanceChangeMessage?: string;
   rewardChangeMessage?: string;
   promoChangeMessage?: string;
+  /** Valeur du champ promo (message + suffixe invisible pour renvoi). */
+  promoNotifyValue?: string;
 };
 
 export type GoogleNotificationPayload = {
@@ -120,7 +129,12 @@ export function resolveWalletSyncPlan(
   snapshot: WalletPassSyncSnapshot,
   lastTransaction: LastTransactionSnapshot,
   options?: {
-    campaignNotify?: { message: string; offer_label?: string | null; title?: string };
+    campaignNotify?: {
+      message: string;
+      offer_label?: string | null;
+      title?: string;
+      notify_batch_id?: string;
+    };
     updateReason?: WalletUpdateReason;
     notificationMode?: WalletNotificationMode;
   },
@@ -166,10 +180,20 @@ function resolveWalletNotificationPlan(
 
 export function resolveCampaignPromoNotificationPlan(
   vm: WalletCardViewModel,
-  campaign: { message: string; offer_label?: string | null; title?: string },
+  campaign: {
+    message: string;
+    offer_label?: string | null;
+    title?: string;
+    notify_batch_id?: string;
+  },
 ): WalletNotificationPlan {
-  const body = (campaign.message || vm.promoMessage || "").trim();
-  const header = (campaign.offer_label || "").trim() || "Offre spéciale";
+  const rawBody = campaign.message || vm.promoMessage || "";
+  const rawHeader = campaign.offer_label || campaign.title || "";
+  const { header, body } = prepareGoogleWalletNotifyTexts(
+    rawHeader.trim() || "Offre spéciale",
+    rawBody,
+  );
+  const promoNotifyValue = buildApplePromoNotifyFieldValue(body, campaign.notify_batch_id);
 
   return {
     kind: "campaign_promo",
@@ -187,7 +211,9 @@ export function resolveCampaignPromoNotificationPlan(
       notifyBalance: false,
       notifyReward: false,
       notifyPromo: Boolean(body),
-      promoChangeMessage: "Nouvelle offre : %@",
+      suppressRewardBannerNotify: true,
+      promoChangeMessage: "%@",
+      promoNotifyValue: promoNotifyValue || sanitizeWalletNotifyText(rawBody),
     },
   };
 }
@@ -196,6 +222,14 @@ export function applyAppleNotificationHints(
   fields: ApplePassFieldSet,
   hints: AppleNotificationHints | null,
 ): void {
+  if (hints?.suppressRewardBannerNotify || hints?.notifyPromo) {
+    for (const field of fields.auxiliaryFields) {
+      if (field.key === "reward_unlocked" || field.key === "reward_unlocked_banner") {
+        delete field.changeMessage;
+      }
+    }
+  }
+
   const balanceField = fields.primaryFields.find((f) => f.key === "balance");
   if (balanceField) {
     if (hints?.notifyBalance && hints.balanceChangeMessage) {

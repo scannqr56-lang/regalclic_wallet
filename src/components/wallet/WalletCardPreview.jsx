@@ -25,7 +25,7 @@ function PointsBalanceHero({ model }) {
       <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
         {model.balanceLabel}
       </p>
-      <p className="text-4xl font-bold tabular-nums text-white">{model.balance}</p>
+      <p className="text-3xl font-bold tabular-nums text-white sm:text-4xl">{model.balance}</p>
     </div>
   );
 }
@@ -91,7 +91,7 @@ function AppleCardFace({ model }) {
         </div>
       ) : null}
 
-      <div className="space-y-4 p-4">
+      <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
         <div className="flex items-center gap-3">
           {model.logoUrl ? (
             <img
@@ -121,15 +121,15 @@ function AppleCardFace({ model }) {
         )}
 
         {model.promoMessage ? (
-          <p className="rounded-lg bg-white/10 px-3 py-2 text-center text-xs text-white/95">
+          <p className="break-words rounded-lg bg-white/10 px-3 py-2 text-center text-xs leading-relaxed text-white/95">
             {model.promoMessage}
           </p>
         ) : (
           !isStamps && <p className="text-center text-xs text-white/75">{model.faceTagline}</p>
         )}
 
-        <div className="flex flex-col items-center gap-2 border-t border-white/15 pt-4">
-          <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-white p-2">
+        <div className="flex flex-col items-center gap-2 border-t border-white/15 pt-3 sm:pt-4">
+          <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-white p-1.5 sm:h-24 sm:w-24 sm:p-2">
             <QrCode className="h-full w-full text-slate-900" strokeWidth={1.25} />
           </div>
           <p className="font-mono text-xs text-white/80">{model.cardNumber}</p>
@@ -163,7 +163,7 @@ function GoogleCardFace({ model }) {
         </div>
       </div>
 
-      <div className="space-y-4 p-4">
+      <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
         {isStamps ? (
           <StampCardBody model={model} />
         ) : (
@@ -171,15 +171,15 @@ function GoogleCardFace({ model }) {
         )}
 
         {model.promoMessage ? (
-          <p className="rounded-lg bg-white/10 px-3 py-2 text-center text-xs text-white/95">
+          <p className="break-words rounded-lg bg-white/10 px-3 py-2 text-center text-xs leading-relaxed text-white/95">
             {model.promoMessage}
           </p>
         ) : (
           !isStamps && <p className="text-center text-xs text-white/75">{model.faceTagline}</p>
         )}
 
-        <div className="flex flex-col items-center gap-2 border-t border-white/15 pt-4">
-          <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-white p-2">
+        <div className="flex flex-col items-center gap-2 border-t border-white/15 pt-3 sm:pt-4">
+          <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-white p-1.5 sm:h-24 sm:w-24 sm:p-2">
             <QrCode className="h-full w-full text-slate-900" strokeWidth={1.25} />
           </div>
           <p className="font-mono text-xs text-white/80">{model.cardNumber}</p>
@@ -198,7 +198,7 @@ function GoogleCardFace({ model }) {
 /**
  * Aperçu aligné sur le mapping Apple PassKit / Google Wallet (classTemplateInfo).
  */
-export default function WalletCardPreview({ form, loyaltyProgram }) {
+export default function WalletCardPreview({ form, loyaltyProgram, compact = false }) {
   const [variant, setVariant] = useState('apple');
   const model = useMemo(
     () => buildWalletPreviewModel(form, loyaltyProgram),
@@ -207,21 +207,28 @@ export default function WalletCardPreview({ form, loyaltyProgram }) {
   const isStamps = model.programType === 'stamps';
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Aperçu de la carte</p>
-          <p className="text-xs text-muted-foreground">
-            {isStamps
-              ? 'Programme tampons : ticket avec emplacements à valider (aligné Apple / Google).'
-              : 'Google et Apple partagent la même structure (grille 2×2, solde centré, promo pleine largeur).'}
-          </p>
-        </div>
-        <div className="flex rounded-lg border bg-white p-0.5 text-xs">
+    <div className="mx-auto min-w-0 w-full max-w-sm space-y-3 sm:max-w-md">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        {!compact ? (
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900">Aperçu de la carte</p>
+            <p className="text-xs text-muted-foreground">
+              {isStamps
+                ? 'Programme tampons — ticket avec emplacements à valider.'
+                : 'Structure alignée Apple Wallet et Google Wallet.'}
+            </p>
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            'flex rounded-lg border bg-white p-0.5 text-xs',
+            compact ? 'w-full' : 'w-full sm:w-auto',
+          )}
+        >
           <button
             type="button"
             className={cn(
-              'rounded-md px-2.5 py-1 font-medium transition-colors',
+              'min-h-9 flex-1 rounded-md px-3 py-1.5 font-medium transition-colors sm:min-h-0 sm:flex-none sm:px-2.5',
               variant === 'apple' ? 'bg-rc-navy text-white' : 'text-slate-600 hover:bg-slate-50',
             )}
             onClick={() => setVariant('apple')}
@@ -231,7 +238,7 @@ export default function WalletCardPreview({ form, loyaltyProgram }) {
           <button
             type="button"
             className={cn(
-              'rounded-md px-2.5 py-1 font-medium transition-colors',
+              'min-h-9 flex-1 rounded-md px-3 py-1.5 font-medium transition-colors sm:min-h-0 sm:flex-none sm:px-2.5',
               variant === 'google' ? 'bg-rc-navy text-white' : 'text-slate-600 hover:bg-slate-50',
             )}
             onClick={() => setVariant('google')}
@@ -241,13 +248,17 @@ export default function WalletCardPreview({ form, loyaltyProgram }) {
         </div>
       </div>
 
-      {variant === 'apple' ? <AppleCardFace model={model} /> : <GoogleCardFace model={model} />}
+      <div className="w-full overflow-hidden">
+        {variant === 'apple' ? <AppleCardFace model={model} /> : <GoogleCardFace model={model} />}
+      </div>
 
-      <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-        Les cartes déjà installées se mettent à jour après un scan, une sync manuelle (fiche client)
-        ou une activation d&apos;offre promo. Si le téléphone affiche encore l&apos;ancien design,
-        utilisez « Mettre à jour la carte Wallet » sur la fiche client.
-      </p>
+      {!compact ? (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-700">
+          Les cartes déjà installées se mettent à jour après un scan, une sync manuelle (fiche client)
+          ou une activation d&apos;offre promo. Si le téléphone affiche encore l&apos;ancien design,
+          utilisez « Mettre à jour la carte Wallet » sur la fiche client.
+        </p>
+      ) : null}
     </div>
   );
 }

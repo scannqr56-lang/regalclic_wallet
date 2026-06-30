@@ -10,6 +10,8 @@ import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormStickyFooter, touchSelectClassName } from '@/components/ui/form-layout';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
@@ -22,9 +24,6 @@ import {
   validateEssentialRestaurantProfilePayload,
   formToProfilePayload,
 } from '@/lib/ai-restaurant-profile';
-
-const selectClassName =
-  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 export default function RestaurantPage() {
   const navigate = useNavigate();
@@ -123,7 +122,7 @@ export default function RestaurantPage() {
               <Label htmlFor="business-type">Type de commerce</Label>
               <select
                 id="business-type"
-                className={selectClassName}
+                className={touchSelectClassName}
                 value={form.business_type}
                 onChange={(e) => setForm((prev) => ({ ...prev, business_type: e.target.value }))}
               >
@@ -141,7 +140,7 @@ export default function RestaurantPage() {
               <Label htmlFor="main-objective">Quel est votre objectif principal ?</Label>
               <select
                 id="main-objective"
-                className={selectClassName}
+                className={touchSelectClassName}
                 value={form.main_objective}
                 onChange={(e) => setForm((prev) => ({ ...prev, main_objective: e.target.value }))}
               >
@@ -157,14 +156,14 @@ export default function RestaurantPage() {
             <div className="space-y-2 rounded-lg border bg-white p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-rc-teal">Question 3</p>
               <Label>Quel niveau de générosité souhaitez-vous ?</Label>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {GENEROSITY_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => setForm((prev) => ({ ...prev, generosity_level: option.value }))}
                     className={cn(
-                      'rounded-lg border px-3 py-3 text-left text-sm transition-colors',
+                      'min-h-12 rounded-lg border px-3 py-3 text-left text-sm transition-colors sm:min-h-0 sm:py-3',
                       form.generosity_level === option.value
                         ? 'border-rc-navy bg-rc-navy text-white'
                         : 'border-slate-200 bg-slate-50 hover:border-rc-navy/30',
@@ -180,21 +179,24 @@ export default function RestaurantPage() {
               <p className="text-sm text-amber-800">{validationError}</p>
             ) : null}
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-              <Button type="button" variant="outline" asChild>
-                <Link to="/dashboard/ai-assistant/profile/advanced">Affinez vos préférences (optionnel)</Link>
-              </Button>
-              <Button
-                type="button"
-                disabled={Boolean(validationError) || saveMutation.isPending}
-                onClick={() => saveMutation.mutate()}
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : null}
-                Enregistrer et continuer
-              </Button>
-            </div>
+            <FormStickyFooter>
+              <ResponsiveActions className="flex-col-reverse sm:flex-row sm:justify-between">
+                <Button type="button" variant="outline" asChild className="w-full sm:w-auto">
+                  <Link to="/dashboard/ai-assistant/profile/advanced">Affinez vos préférences (optionnel)</Link>
+                </Button>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
+                  disabled={Boolean(validationError) || saveMutation.isPending}
+                  onClick={() => saveMutation.mutate()}
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  Enregistrer et continuer
+                </Button>
+              </ResponsiveActions>
+            </FormStickyFooter>
           </CardContent>
         </Card>
       </GuidedLayout>

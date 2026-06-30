@@ -12,6 +12,7 @@ import {
   Search,
   Sparkles,
   Stamp,
+  User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -165,8 +166,8 @@ function MembershipPanel({
     <div className="space-y-4">
       <Card className="border-rc-teal/30 bg-gradient-to-br from-white to-rc-teal/5">
         <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <CardTitle className="text-xl">
                 {customer?.first_name || 'Client'}
               </CardTitle>
@@ -174,13 +175,21 @@ function MembershipPanel({
                 Carte n° {membership.card_number}
               </CardDescription>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={onReset}>
-              <RotateCcw className="h-4 w-4" />
-              Autre client
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" className="min-h-10" asChild>
+                <Link to={`/dashboard/customers/${membership.id}`}>
+                  <User className="h-4 w-4" />
+                  Fiche client
+                </Link>
+              </Button>
+              <Button type="button" variant="outline" size="sm" className="min-h-10" onClick={onReset}>
+                <RotateCcw className="h-4 w-4" />
+                Autre client
+              </Button>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
+        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-xl bg-white p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {isStamps ? 'Tampons' : 'Points'}
@@ -235,7 +244,7 @@ function MembershipPanel({
           {isStamps ? (
             <Button
               type="button"
-              className="h-12 w-full gap-2"
+              className="h-14 w-full gap-2 text-base"
               disabled={busy}
               onClick={() => stampMutation.mutate()}
             >
@@ -257,6 +266,7 @@ function MembershipPanel({
                   placeholder="Ex. 24,50"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  className="h-12 text-base"
                 />
                 {previewPoints > 0 ? (
                   <p className="text-sm text-muted-foreground">
@@ -268,7 +278,7 @@ function MembershipPanel({
               </div>
               <Button
                 type="button"
-                className="h-12 w-full gap-2"
+                className="h-14 w-full gap-2 text-base"
                 disabled={busy || previewPoints <= 0}
                 onClick={() => pointsMutation.mutate()}
               >
@@ -289,6 +299,7 @@ function MembershipPanel({
               placeholder="Ex. déjeuner, table 4…"
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              className="h-11"
             />
           </div>
 
@@ -296,7 +307,7 @@ function MembershipPanel({
             <Button
               type="button"
               variant="outline"
-              className="w-full gap-2 border-rc-orange text-rc-orange hover:bg-rc-orange/10"
+              className="h-12 w-full gap-2 border-rc-orange text-base text-rc-orange hover:bg-rc-orange/10"
               disabled={busy}
               onClick={() => redeemMutation.mutate()}
             >
@@ -481,34 +492,34 @@ export default function ScanPage() {
       title="Scanner client"
       description="Scannez le QR code sur la carte Wallet du client."
     >
-      <div className="space-y-6">
+      <div className="space-y-4 pb-4">
         {!lookupData ? (
           <>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant={mode === 'scan' ? 'default' : 'outline'}
-                className="gap-2"
+                className="h-12 gap-2 text-sm sm:text-base"
                 onClick={() => {
                   setMode('scan');
                   setScanActive(true);
                   setLookupError('');
                 }}
               >
-                <Camera className="h-4 w-4" />
+                <Camera className="h-5 w-5" />
                 Caméra
               </Button>
               <Button
                 type="button"
                 variant={mode === 'manual' ? 'default' : 'outline'}
-                className="gap-2"
+                className="h-12 gap-2 text-sm sm:text-base"
                 onClick={() => {
                   setMode('manual');
                   setScanActive(false);
                   setLookupError('');
                 }}
               >
-                <Search className="h-4 w-4" />
+                <Search className="h-5 w-5" />
                 Saisie manuelle
               </Button>
             </div>
@@ -550,14 +561,18 @@ export default function ScanPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleManualSearch} className="flex flex-col gap-3 sm:flex-row">
+                  <form onSubmit={handleManualSearch} className="flex flex-col gap-3">
                     <Input
                       value={manualToken}
                       onChange={(e) => setManualToken(e.target.value)}
                       placeholder="Token QR de la carte"
-                      className="flex-1"
+                      className="h-12 text-base"
                     />
-                    <Button type="submit" disabled={lookupLoading || !manualToken.trim()}>
+                    <Button
+                      type="submit"
+                      className="h-12 w-full"
+                      disabled={lookupLoading || !manualToken.trim()}
+                    >
                       {lookupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Rechercher'}
                     </Button>
                   </form>

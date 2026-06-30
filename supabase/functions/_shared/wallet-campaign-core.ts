@@ -150,11 +150,12 @@ function summarizeSyncResult(result: WalletSyncResult, notifyAttempted: boolean)
   };
 }
 
-function campaignNotifyPayload(campaign: WalletCampaignRow) {
+function campaignNotifyPayload(campaign: WalletCampaignRow, notifyBatchId?: string | null) {
   return {
     message: campaign.message,
     offer_label: campaign.offer_label,
     title: campaign.title,
+    notify_batch_id: notifyBatchId ?? undefined,
   };
 }
 
@@ -196,7 +197,9 @@ export async function broadcastCampaignToMemberships(
     return summary;
   }
 
-  const syncOptions = notify ? { campaignNotify: campaignNotifyPayload(campaign) } : undefined;
+  const syncOptions = notify
+    ? { campaignNotify: campaignNotifyPayload(campaign, notifyBatchId) }
+    : undefined;
 
   for (const membershipId of membershipIds) {
     try {

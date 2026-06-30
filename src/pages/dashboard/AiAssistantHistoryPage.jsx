@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import AiAssistantNav from '@/components/ai-assistant/AiAssistantNav';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { Button } from '@/components/ui/button';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -71,18 +72,18 @@ function BatchRow({ batch, businessId }) {
         ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <ResponsiveActions className="sm:justify-end">
         {batch.status === 'completed' ? (
           <Button variant="outline" size="sm" asChild>
             <Link to="/dashboard/ideas?tab=offers">Choisir</Link>
           </Button>
         ) : batch.status === 'processing' ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-amber-700">
+          <span className="inline-flex min-h-11 items-center gap-1.5 text-xs text-amber-700 sm:min-h-0">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             En cours…
           </span>
         ) : null}
-      </div>
+      </ResponsiveActions>
     </div>
   );
 }

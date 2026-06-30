@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import TransactionHistoryList from '@/components/customers/TransactionHistoryList';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import {
   fetchMembershipDetail,
@@ -21,55 +23,11 @@ import {
   getCustomerDisplayName,
   getWalletBadges,
 } from '@/lib/customers';
-import { formatTransactionType, notifyWalletSyncResult, syncMembershipWallet } from '@/lib/scan';
+import { notifyWalletSyncResult, syncMembershipWallet } from '@/lib/scan';
 import { STALE_TIMES } from '@/lib/query-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-
-function TransactionHistory({ transactions }) {
-  if (!transactions?.length) {
-    return <p className="text-sm text-muted-foreground">Aucun mouvement enregistré.</p>;
-  }
-
-  return (
-    <ul className="space-y-2">
-      {transactions.map((tx) => (
-        <li
-          key={tx.id}
-          className="flex items-start justify-between gap-3 rounded-lg border bg-white px-3 py-2 text-sm"
-        >
-          <div>
-            <p className="font-medium">{formatTransactionType(tx.type)}</p>
-            {tx.note ? <p className="text-muted-foreground">{tx.note}</p> : null}
-            {tx.amount_spent ? (
-              <p className="text-xs text-muted-foreground">
-                Montant :
-                {' '}
-                {Number(tx.amount_spent).toFixed(2)}
-                {' '}
-                €
-              </p>
-            ) : null}
-          </div>
-          <div className="text-right text-xs text-muted-foreground">
-            <p>{new Date(tx.created_at).toLocaleString('fr-FR')}</p>
-            {tx.points_delta > 0 ? <p className="text-rc-navy">+{tx.points_delta} pts</p> : null}
-            {tx.stamps_delta > 0 ? <p className="text-rc-navy">+{tx.stamps_delta} tampon</p> : null}
-            {tx.rewards_delta !== 0 ? (
-              <p className={tx.rewards_delta > 0 ? 'text-green-600' : 'text-rc-orange'}>
-                {tx.rewards_delta > 0 ? '+' : ''}
-                {tx.rewards_delta}
-                {' '}
-                récomp.
-              </p>
-            ) : null}
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 export default function CustomerDetailPage() {
   const { membershipId } = useParams();
@@ -157,12 +115,54 @@ export default function CustomerDetailPage() {
     );
   }
 
+  const actionsCard = (
+    <Card className="border-rc-teal/20 lg:order-none">
+      <CardHeader>
+        <CardTitle className="text-base">Actions</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <ResponsiveActions>
+          <Button asChild className="gap-2">
+            <Link to={`/dashboard/scan?membership=${membership.id}`}>
+              <ScanLine className="h-4 w-4" />
+              Scanner / créditer
+            </Link>
+          </Button>
+          {hasWalletTarget ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              disabled={syncMutation.isPending}
+              onClick={() => syncMutation.mutate()}
+            >
+              {syncMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Mettre à jour Wallet
+            </Button>
+          ) : null}
+        </ResponsiveActions>
+        {membership.rewards_available > 0 ? (
+          <p className="flex items-center gap-2 rounded-lg bg-rc-orange/10 px-3 py-2 text-sm font-medium text-rc-orange">
+            <Gift className="h-4 w-4 shrink-0" />
+            {membership.rewards_available}
+            {' '}
+            récompense(s) à utiliser
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <DashboardLayout
       title={getCustomerDisplayName(customer)}
       description={`Carte n° ${membership.card_number}`}
     >
-      <div className="space-y-4">
+      <div className="space-y-4 pb-24 lg:pb-4">
         <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
           <Link to="/dashboard/customers">
             <ArrowLeft className="h-4 w-4" />
@@ -170,16 +170,16 @@ export default function CustomerDetailPage() {
           </Link>
         </Button>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Card className={membership.rewards_available > 0 ? 'col-span-2 border-rc-orange/30 sm:col-span-1' : ''}>
             <CardContent className="p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {isStamps ? 'Tampons' : 'Points'}
               </p>
-              <p className="mt-1 text-3xl font-bold text-rc-navy">
+              <p className="mt-1 text-2xl font-bold text-rc-navy sm:text-3xl">
                 {isStamps ? membership.stamps_balance : membership.points_balance}
                 {isStamps && program?.stamps_required ? (
-                  <span className="text-lg font-normal text-muted-foreground">
+                  <span className="text-base font-normal text-muted-foreground sm:text-lg">
                     {' '}
                     / {program.stamps_required}
                   </span>
@@ -187,20 +187,20 @@ export default function CustomerDetailPage() {
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className={membership.rewards_available > 0 ? 'border-rc-orange/40 bg-rc-orange/5' : ''}>
             <CardContent className="p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Récompenses
               </p>
-              <p className="mt-1 text-3xl font-bold text-rc-orange">
+              <p className="mt-1 text-2xl font-bold text-rc-orange sm:text-3xl">
                 {membership.rewards_available}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="truncate text-xs text-muted-foreground">
                 {program?.reward_label || 'Récompense'}
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="col-span-2 sm:col-span-1">
             <CardContent className="p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Inscrit le
@@ -210,7 +210,7 @@ export default function CustomerDetailPage() {
               </p>
               {walletBadges.length > 0 ? (
                 <p className="mt-1 flex items-center gap-1 text-xs text-rc-teal">
-                  <Smartphone className="h-3 w-3" />
+                  <Smartphone className="h-3 w-3 shrink-0" />
                   {walletBadges.join(' · ')}
                 </p>
               ) : (
@@ -220,14 +220,17 @@ export default function CustomerDetailPage() {
           </Card>
         </div>
 
+        {/* Actions visibles tôt sur mobile */}
+        <div className="lg:hidden">{actionsCard}</div>
+
         <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-base">Historique</CardTitle>
               <CardDescription>50 derniers mouvements</CardDescription>
             </CardHeader>
             <CardContent>
-              <TransactionHistory transactions={data.transactions} />
+              <TransactionHistoryList transactions={data.transactions} />
             </CardContent>
           </Card>
 
@@ -239,14 +242,18 @@ export default function CustomerDetailPage() {
               <CardContent className="space-y-3 text-sm">
                 {customer?.phone ? (
                   <p className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    {customer.phone}
+                    <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <a href={`tel:${customer.phone}`} className="break-all hover:underline">
+                      {customer.phone}
+                    </a>
                   </p>
                 ) : null}
                 {customer?.email ? (
-                  <p className="flex items-center gap-2 break-all">
+                  <p className="flex items-center gap-2">
                     <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    {customer.email}
+                    <a href={`mailto:${customer.email}`} className="break-all hover:underline">
+                      {customer.email}
+                    </a>
                   </p>
                 ) : null}
                 {!customer?.phone && !customer?.email ? (
@@ -255,49 +262,13 @@ export default function CustomerDetailPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button asChild className="w-full gap-2">
-                  <Link to={`/dashboard/scan?membership=${membership.id}`}>
-                    <ScanLine className="h-4 w-4" />
-                    Scanner / créditer
-                  </Link>
-                </Button>
-                {hasWalletTarget ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-2"
-                    disabled={syncMutation.isPending}
-                    onClick={() => syncMutation.mutate()}
-                  >
-                    {syncMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                    Mettre à jour la carte Wallet
-                  </Button>
-                ) : null}
-                {membership.rewards_available > 0 ? (
-                  <p className="flex items-center gap-2 text-xs text-rc-orange">
-                    <Gift className="h-3 w-3" />
-                    {membership.rewards_available}
-                    {' '}
-                    récompense(s) à utiliser
-                  </p>
-                ) : null}
-              </CardContent>
-            </Card>
+            <div className="hidden lg:block">{actionsCard}</div>
 
             {hasWalletTarget ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Sync Wallet</CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-xs sm:text-sm">
                     {lastSync
                       ? `Dernière sync : ${lastSync.statusLabel} (${lastSync.sourceLabel}) — ${lastSync.at}`
                       : 'Aucune synchronisation enregistrée'}
@@ -308,18 +279,21 @@ export default function CustomerDetailPage() {
                     <p className="mb-3 text-xs text-muted-foreground">{lastSync.detail}</p>
                   ) : null}
                   {syncLogs.length > 0 ? (
-                    <ul className="space-y-1.5 text-xs text-muted-foreground">
+                    <ul className="space-y-2 text-xs text-muted-foreground">
                       {syncLogs.slice(0, 5).map((log) => {
                         const fmt = formatWalletSyncStatus(log);
                         return (
-                          <li key={log.id} className="flex justify-between gap-2 border-b border-slate-100 pb-1.5">
+                          <li
+                            key={log.id}
+                            className="flex flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-2"
+                          >
                             <span>
                               {fmt.statusLabel}
                               {fmt.notificationLabel ? (
                                 <span className="ml-1 text-rc-orange">· {fmt.notificationLabel}</span>
                               ) : null}
                             </span>
-                            <span className="shrink-0 text-right">
+                            <span className="shrink-0 text-slate-500">
                               {fmt.sourceLabel}
                               {' · '}
                               {new Date(log.created_at).toLocaleDateString('fr-FR')}
@@ -338,6 +312,16 @@ export default function CustomerDetailPage() {
             ) : null}
           </div>
         </div>
+      </div>
+
+      {/* Barre d'action sticky mobile */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-white/95 p-3 shadow-lg backdrop-blur lg:hidden">
+        <Button asChild className="h-12 w-full gap-2 text-base">
+          <Link to={`/dashboard/scan?membership=${membership.id}`}>
+            <ScanLine className="h-5 w-5" />
+            Scanner / ajouter points
+          </Link>
+        </Button>
       </div>
     </DashboardLayout>
   );

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 const CAMPAIGN_BROADCAST_FUNCTION = 'wallet-campaign-broadcast';
 
 const WALLET_NOTIFY_DISCLAIMER =
-  'Les notifications Wallet dépendent des règles Apple et Google. Elles ne sont pas garanties sur tous les appareils.';
+  'Le titre affiché = votre libellé d\'offre, le texte = votre message (emojis acceptés). Les notifications Wallet dépendent des règles Apple et Google — elles ne sont pas garanties sur tous les appareils (max. 3 notifs Google / jour / carte).';
 
 function getSupabaseConfig() {
   const url = import.meta.env.VITE_SUPABASE_URL ?? '';

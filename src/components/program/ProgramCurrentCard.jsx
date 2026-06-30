@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Pencil, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import {
@@ -64,7 +65,7 @@ export default function ProgramCurrentCard({
           ) : null}
         </dl>
 
-        <div className="flex flex-wrap gap-2">
+        <ResponsiveActions>
           <Button type="button" onClick={onEdit}>
             <Pencil className="h-4 w-4" />
             Modifier
@@ -73,10 +74,10 @@ export default function ProgramCurrentCard({
             <Trash2 className="h-4 w-4" />
             Supprimer
           </Button>
-        </div>
+        </ResponsiveActions>
 
         <div className="border-t pt-4">
-          <Button type="button" variant="ghost" size="sm" onClick={onReplace}>
+          <Button type="button" variant="ghost" className="h-11 w-full sm:w-auto" onClick={onReplace}>
             Remplacer par un nouveau programme
           </Button>
         </div>

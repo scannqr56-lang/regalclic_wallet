@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormStickyFooter } from '@/components/ui/form-layout';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { cn } from '@/lib/utils';
 
 export default function ProgramForm({
@@ -27,9 +29,9 @@ export default function ProgramForm({
             e.preventDefault();
             onSubmit();
           }}
-          className="max-w-xl space-y-6"
+          className="w-full space-y-6"
         >
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               { value: 'points', label: 'Points', desc: '1 € = X points' },
               { value: 'stamps', label: 'Tampons', desc: '1 achat = 1 tampon' },
@@ -39,7 +41,7 @@ export default function ProgramForm({
                 type="button"
                 onClick={() => onChange({ ...form, type: option.value })}
                 className={cn(
-                  'rounded-xl border p-4 text-left transition-colors',
+                  'min-h-[4.5rem] rounded-xl border p-4 text-left transition-colors',
                   form.type === option.value
                     ? 'border-rc-navy bg-rc-navy/5 ring-2 ring-rc-navy'
                     : 'hover:bg-muted/50',
@@ -61,7 +63,7 @@ export default function ProgramForm({
           </div>
 
           {form.type === 'points' ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="points_per_euro">Points par euro</Label>
                 <Input
@@ -126,17 +128,19 @@ export default function ProgramForm({
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {submitLabel}
-            </Button>
-            {onCancel ? (
-              <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-                Annuler
+          <FormStickyFooter>
+            <ResponsiveActions>
+              <Button type="submit" disabled={loading} className="sm:min-w-[12rem]">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {submitLabel}
               </Button>
-            ) : null}
-          </div>
+              {onCancel ? (
+                <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+                  Annuler
+                </Button>
+              ) : null}
+            </ResponsiveActions>
+          </FormStickyFooter>
         </form>
       </CardContent>
     </Card>

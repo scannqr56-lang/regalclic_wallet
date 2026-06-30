@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormStickyFooter, touchSelectClassName, touchTextareaClassName } from '@/components/ui/form-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
@@ -29,12 +30,6 @@ import {
   validateRestaurantProfilePayload,
 } from '@/lib/ai-restaurant-profile';
 
-const textareaClassName =
-  'flex min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-
-const selectClassName =
-  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-
 function ChipGroup({ options, value, onChange, disabled }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -47,7 +42,7 @@ function ChipGroup({ options, value, onChange, disabled }) {
             disabled={disabled}
             onClick={() => onChange(toggleArrayValue(value, option.value))}
             className={cn(
-              'rounded-full border px-3 py-1.5 text-sm transition-colors',
+              'min-h-10 rounded-full border px-3 py-2 text-sm transition-colors sm:min-h-0 sm:py-1.5',
               active
                 ? 'border-rc-navy bg-rc-navy text-white'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-rc-navy/30',
@@ -223,7 +218,7 @@ export default function AiAssistantProfilePage() {
               description="Un produit par ligne"
             >
               <textarea
-                className={textareaClassName}
+                className={touchTextareaClassName}
                 value={form.products_to_push_text}
                 placeholder={'Ex. Menu midi\nPizza signature\nDessert maison'}
                 onChange={(e) => updateForm({ products_to_push_text: e.target.value })}
@@ -267,7 +262,7 @@ export default function AiAssistantProfilePage() {
                     type="button"
                     onClick={() => updateForm({ tone_of_voice: option.value })}
                     className={cn(
-                      'rounded-full border px-3 py-1.5 text-sm transition-colors',
+                      'min-h-10 rounded-full border px-3 py-2 text-sm transition-colors sm:min-h-0 sm:py-1.5',
                       form.tone_of_voice === option.value
                         ? 'border-rc-navy bg-rc-navy text-white'
                         : 'border-slate-200 bg-white hover:border-rc-navy/30',
@@ -285,7 +280,7 @@ export default function AiAssistantProfilePage() {
               description="Ex. pas de -50%, pas de happy hour le week-end…"
             >
               <textarea
-                className={textareaClassName}
+                className={touchTextareaClassName}
                 value={form.offers_to_avoid}
                 placeholder="Décrivez les limites ou offres que vous ne voulez pas proposer"
                 onChange={(e) => updateForm({ offers_to_avoid: e.target.value })}
@@ -295,7 +290,7 @@ export default function AiAssistantProfilePage() {
             <div className="space-y-2 rounded-lg border bg-slate-50 p-4">
               <Label>Sensibilité aux coûts (optionnel)</Label>
               <select
-                className={selectClassName}
+                className={touchSelectClassName}
                 value={form.margin_sensitivity}
                 onChange={(e) => updateForm({ margin_sensitivity: e.target.value })}
               >
@@ -307,31 +302,34 @@ export default function AiAssistantProfilePage() {
                 ))}
               </select>
               <textarea
-                className={textareaClassName}
+                className={touchTextareaClassName}
                 value={form.notes}
                 placeholder="Notes libres (optionnel)"
                 onChange={(e) => updateForm({ notes: e.target.value })}
               />
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-              <p className="text-xs text-slate-500">
-                {dirty ? 'Modifications non enregistrées' : 'Profil à jour'}
-                {saveMutation.isPending ? ' · Enregistrement…' : ''}
-              </p>
-              <Button
-                type="button"
-                disabled={saveMutation.isPending}
-                onClick={() => saveMutation.mutate()}
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Enregistrer
-              </Button>
-            </div>
+            <FormStickyFooter>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-center text-xs text-slate-500 sm:text-left">
+                  {dirty ? 'Modifications non enregistrées' : 'Profil à jour'}
+                  {saveMutation.isPending ? ' · Enregistrement…' : ''}
+                </p>
+                <Button
+                  type="button"
+                  className="h-12 w-full sm:h-10 sm:w-auto"
+                  disabled={saveMutation.isPending}
+                  onClick={() => saveMutation.mutate()}
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Enregistrer
+                </Button>
+              </div>
+            </FormStickyFooter>
           </CardContent>
         </Card>
       </div>

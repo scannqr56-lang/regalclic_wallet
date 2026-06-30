@@ -31,7 +31,7 @@ export default function SimpleStatsRow({ stats, loyaltyProgram, loading }) {
     : stats?.total_points_distributed ?? 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <StatCard label="Clients inscrits" value={customersCount} icon={Users} />
       <StatCard label={distributedLabel} value={distributedValue} icon={Sparkles} />
       <StatCard label="Récompenses en attente" value={stats?.rewards_pending ?? 0} icon={Store} />

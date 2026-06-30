@@ -259,21 +259,26 @@ export async function buildApplePkpass(input: ApplePassBuildInput): Promise<Uint
   const vm = input.viewModel;
   const fields = mapViewModelToAppleFields(vm);
 
-  if (vm.promoMessage) {
+  if (vm.promoMessage || input.notificationHints?.promoNotifyValue) {
     fields.auxiliaryFields.unshift({
       key: "tagline",
       label: " ",
-      value: vm.promoMessage,
+      value: input.notificationHints?.promoNotifyValue ?? vm.promoMessage ?? "",
     });
   }
 
   if (vm.hasRewardUnlocked) {
-    fields.auxiliaryFields.unshift({
+    const rewardBanner = {
       key: "reward_unlocked_banner",
       label: WALLET_DEFAULT_TEXTS.rewardUnlockedShort,
       value: vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel,
-      changeMessage: "Récompense : %@",
-    });
+    } as { key: string; label: string; value: string; changeMessage?: string };
+
+    if (!input.notificationHints?.suppressRewardBannerNotify) {
+      rewardBanner.changeMessage = "Récompense : %@";
+    }
+
+    fields.auxiliaryFields.unshift(rewardBanner);
   }
 
   applyAppleNotificationHints(fields, input.notificationHints ?? null);

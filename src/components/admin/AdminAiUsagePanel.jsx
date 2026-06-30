@@ -2,6 +2,7 @@ import { AlertTriangle, BarChart3, Clock, Coins, RefreshCw } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query';
 import { fetchAdminAiUsageSummary } from '@/lib/admin-merchants';
 import { formatAiActionLabel } from '@/lib/ai-usage';
+import ResponsiveDataTable from '@/components/ui/responsive-data-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,10 +36,10 @@ export default function AdminAiUsagePanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <CardTitle className="flex items-center gap-2 text-base">
-            <BarChart3 className="h-5 w-5 text-rc-teal" />
+            <BarChart3 className="h-5 w-5 shrink-0 text-rc-teal" />
             Observabilité IA
           </CardTitle>
           <CardDescription>
@@ -47,7 +48,7 @@ export default function AdminAiUsagePanel() {
         </div>
         <Button
           variant="outline"
-          size="sm"
+          className="h-11 w-full shrink-0 sm:w-auto"
           disabled={summaryQuery.isFetching}
           onClick={() => summaryQuery.refetch()}
         >
@@ -77,7 +78,7 @@ export default function AdminAiUsagePanel() {
               </div>
             ) : null}
 
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg border bg-slate-50 px-4 py-3">
                 <p className="flex items-center gap-1.5 text-xs text-slate-500">
                   <Coins className="h-3.5 w-3.5" />
@@ -113,31 +114,34 @@ export default function AdminAiUsagePanel() {
             {summary.by_business.length > 0 ? (
               <div>
                 <p className="mb-2 text-sm font-medium text-slate-900">Par commerce</p>
-                <div className="overflow-x-auto rounded-lg border">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50 text-left text-xs text-slate-500">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Commerce</th>
-                        <th className="px-3 py-2 font-medium">Appels</th>
-                        <th className="px-3 py-2 font-medium">Coût est.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {summary.by_business.map((row) => (
-                        <tr key={row.business_id} className="border-t">
-                          <td className="px-3 py-2">
-                            <p className="font-medium text-slate-900">{row.business_name}</p>
-                            {row.business_slug ? (
-                              <p className="text-xs text-slate-500">{row.business_slug}</p>
-                            ) : null}
-                          </td>
-                          <td className="px-3 py-2 text-slate-700">{row.calls}</td>
-                          <td className="px-3 py-2 text-slate-700">{formatUsd(row.cost_usd)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ResponsiveDataTable
+                  rows={summary.by_business}
+                  rowKey={(row) => row.business_id}
+                  columns={[
+                    {
+                      key: 'business',
+                      header: 'Commerce',
+                      render: (row) => (
+                        <>
+                          <p className="font-medium text-slate-900">{row.business_name}</p>
+                          {row.business_slug ? (
+                            <p className="text-xs text-slate-500">{row.business_slug}</p>
+                          ) : null}
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'calls',
+                      header: 'Appels',
+                      render: (row) => row.calls,
+                    },
+                    {
+                      key: 'cost',
+                      header: 'Coût est.',
+                      render: (row) => formatUsd(row.cost_usd),
+                    },
+                  ]}
+                />
               </div>
             ) : (
               <p className="text-sm text-slate-500">Aucun appel IA enregistré ce mois.</p>
@@ -163,13 +167,13 @@ export default function AdminAiUsagePanel() {
                   {summary.recent.slice(0, 8).map((row) => (
                     <div
                       key={row.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs text-slate-600"
+                      className="rounded-md border px-3 py-3 text-xs text-slate-600 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-2 sm:py-2"
                     >
-                      <span className="font-medium text-slate-800">{row.business_name}</span>
-                      <span>{formatAiActionLabel(row.action)}</span>
-                      <span>{formatUsd(row.cost_usd)}</span>
-                      <span>{row.model_used || '—'}</span>
-                      <span>{formatDateTime(row.created_at)}</span>
+                      <span className="block font-medium text-slate-800 sm:inline">{row.business_name}</span>
+                      <span className="mt-1 block sm:mt-0">{formatAiActionLabel(row.action)}</span>
+                      <span className="font-medium">{formatUsd(row.cost_usd)}</span>
+                      <span className="hidden text-slate-500 sm:inline">{row.model_used || '—'}</span>
+                      <span className="text-slate-500">{formatDateTime(row.created_at)}</span>
                     </div>
                   ))}
                 </div>

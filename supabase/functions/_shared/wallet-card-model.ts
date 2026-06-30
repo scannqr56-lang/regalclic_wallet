@@ -985,12 +985,16 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
     ...(isStamps ? [] : [buildGoogleFaceStatusModule(vm)]),
     {
       id: GOOGLE_FACE_MODULE_IDS.promo,
-      header: (!isStamps && vm.hasRewardUnlocked)
-        ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort
-        : (vm.promoMessage ? vm.promoLabel : " "),
-      body: (!isStamps && vm.hasRewardUnlocked)
-        ? (vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel)
-        : (vm.promoMessage || vm.faceTagline),
+      header: vm.promoMessage
+        ? vm.promoLabel
+        : ((!isStamps && vm.hasRewardUnlocked)
+          ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort
+          : " "),
+      body: vm.promoMessage
+        ? vm.promoMessage
+        : ((!isStamps && vm.hasRewardUnlocked)
+          ? (vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel)
+          : vm.faceTagline),
     },
     {
       id: "program",

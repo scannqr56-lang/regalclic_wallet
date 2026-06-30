@@ -19,6 +19,7 @@ import {
 import { buildWalletCardViewModel } from "./wallet-card-model.ts";
 import { fetchActiveWalletCampaign } from "./wallet-campaign-queries.ts";
 import {
+  addGoogleWalletNotifyMessage,
   buildGoogleSyncPatchBody,
   getGoogleAccessToken,
   patchGoogleLoyaltyObject,
@@ -37,6 +38,7 @@ export type WalletSyncOptions = {
     message: string;
     offer_label?: string | null;
     title?: string;
+    notify_batch_id?: string;
   };
   /** Override explicite (offres, MAJ commerciale future) */
   updateReason?: WalletUpdateReason;
@@ -350,14 +352,26 @@ export async function syncWalletForMembership(
         } else {
           const classId = googleWalletClassId(issuerId, vm.businessId);
           await upsertGoogleClass(token, classId, vm);
-          const patchBody = buildGoogleSyncPatchBody(
-            vm,
-            notificationPlan.notifyGoogle ? notificationPlan : undefined,
-          );
+          const patchBody = buildGoogleSyncPatchBody(vm);
           await patchGoogleLoyaltyObject(token, row.google_object_id, patchBody);
           result.google.synced = true;
-          if (notificationPlan.notifyGoogle) {
-            result.notification.sent_google = true;
+
+          if (notificationPlan.notifyGoogle && notificationPlan.google.notify && notificationPlan.google.body) {
+            try {
+              await addGoogleWalletNotifyMessage(token, row.google_object_id, {
+                membershipId,
+                header: notificationPlan.google.header,
+                body: notificationPlan.google.body,
+                kind: notificationPlan.kind,
+                notifyBatchId: options?.campaignNotify?.notify_batch_id,
+              });
+              result.notification.sent_google = true;
+            } catch (notifyError) {
+              const notifyMessage = notifyError instanceof Error ? notifyError.message : String(notifyError);
+              result.google.error = result.google.error
+                ? `${result.google.error}; ${notifyMessage}`
+                : notifyMessage;
+            }
           }
 
           await supabase

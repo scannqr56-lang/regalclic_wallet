@@ -6,7 +6,7 @@ import { Scanner } from '@yudiel/react-qr-scanner';
 export default function QrScanner({ active, onResult, onError }) {
   if (!active) {
     return (
-      <div className="flex aspect-square w-full max-h-80 items-center justify-center rounded-xl bg-slate-100 px-4 text-center text-xs text-slate-500">
+      <div className="flex aspect-[4/3] w-full max-w-md items-center justify-center rounded-xl bg-slate-100 px-4 text-center text-sm text-slate-500 sm:aspect-square sm:max-h-[min(70vh,28rem)]">
         <p>Activez le scanner pour démarrer la caméra.</p>
       </div>
     );
@@ -14,7 +14,7 @@ export default function QrScanner({ active, onResult, onError }) {
 
   return (
     <div className="flex w-full justify-center">
-      <div className="w-full max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-black/5">
+      <div className="aspect-[4/3] w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-black sm:aspect-square sm:max-h-[min(70vh,28rem)]">
         <Scanner
           onScan={(codes) => {
             if (!codes?.length) return;

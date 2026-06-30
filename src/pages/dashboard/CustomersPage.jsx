@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, ChevronRight, Search, Users } from 'lucide-react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import CustomerListCard from '@/components/customers/CustomerListCard';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import {
   fetchBusinessCustomers,
@@ -87,13 +88,13 @@ export default function CustomersPage() {
       description={`${customers.length} client${customers.length > 1 ? 's' : ''} inscrit${customers.length > 1 ? 's' : ''}`}
     >
       <div className="space-y-4">
-        <div className="relative max-w-md">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher par nom, téléphone, email ou n° carte…"
-            className="pl-9"
+            className="h-11 pl-9"
           />
         </div>
 
@@ -114,59 +115,69 @@ export default function CustomersPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Liste des clients</CardTitle>
-              <CardDescription>Cliquez sur une fiche pour voir l&apos;historique.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ul className="divide-y">
-                {filtered.map((row) => {
-                  const walletBadges = getWalletBadges(row);
-                  return (
-                    <li key={row.id}>
-                      <Link
-                        to={`/dashboard/customers/${row.id}`}
-                        className="flex items-center gap-4 px-4 py-4 transition-colors hover:bg-slate-50"
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rc-navy/10 text-sm font-semibold text-rc-navy">
-                          {(row.customers?.first_name?.[0] || 'C').toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">
-                            {getCustomerDisplayName(row.customers)}
-                          </p>
-                          <p className="truncate text-sm text-muted-foreground">
-                            {row.customers?.phone || row.customers?.email || `Carte ${row.card_number}`}
-                          </p>
-                          {walletBadges.length > 0 ? (
-                            <p className="mt-1 text-xs text-rc-teal">
-                              Wallet :
-                              {' '}
-                              {walletBadges.join(' · ')}
+          <>
+            {/* Mobile : cartes avec actions */}
+            <ul className="space-y-3 md:hidden">
+              {filtered.map((row) => (
+                <CustomerListCard key={row.id} row={row} programType={programType} />
+              ))}
+            </ul>
+
+            {/* Tablette / desktop : liste compacte */}
+            <Card className="hidden md:block">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Liste des clients</CardTitle>
+                <CardDescription>Cliquez sur une fiche pour voir l&apos;historique.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ul className="divide-y">
+                  {filtered.map((row) => {
+                    const walletBadges = getWalletBadges(row);
+                    return (
+                      <li key={row.id}>
+                        <Link
+                          to={`/dashboard/customers/${row.id}`}
+                          className="flex items-center gap-4 px-4 py-4 transition-colors hover:bg-slate-50"
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rc-navy/10 text-sm font-semibold text-rc-navy">
+                            {(row.customers?.first_name?.[0] || 'C').toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">
+                              {getCustomerDisplayName(row.customers)}
                             </p>
-                          ) : null}
-                        </div>
-                        <div className="hidden text-right sm:block">
-                          <p className="text-sm font-semibold text-rc-navy">
-                            <BalanceCell membership={row} programType={programType} />
-                          </p>
-                          {row.rewards_available > 0 ? (
-                            <p className="text-xs text-rc-orange">
-                              {row.rewards_available}
-                              {' '}
-                              récomp.
+                            <p className="truncate text-sm text-muted-foreground">
+                              {row.customers?.phone || row.customers?.email || `Carte ${row.card_number}`}
                             </p>
-                          ) : null}
-                        </div>
-                        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CardContent>
-          </Card>
+                            {walletBadges.length > 0 ? (
+                              <p className="mt-1 text-xs text-rc-teal">
+                                Wallet :
+                                {' '}
+                                {walletBadges.join(' · ')}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-semibold text-rc-navy">
+                              <BalanceCell membership={row} programType={programType} />
+                            </p>
+                            {row.rewards_available > 0 ? (
+                              <p className="text-xs text-rc-orange">
+                                {row.rewards_available}
+                                {' '}
+                                récomp.
+                              </p>
+                            ) : null}
+                          </div>
+                          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
     </DashboardLayout>

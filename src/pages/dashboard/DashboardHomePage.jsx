@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, AlertCircle, ScanLine, QrCode } from 'lucide-react';
+import { ArrowRight, AlertCircle } from 'lucide-react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
@@ -7,6 +7,7 @@ import NextActionCard from '@/components/onboarding/NextActionCard';
 import OnboardingChecklist from '@/components/onboarding/OnboardingChecklist';
 import ProgramStatusCard from '@/components/onboarding/ProgramStatusCard';
 import SimpleStatsRow from '@/components/onboarding/SimpleStatsRow';
+import DashboardQuickActions from '@/components/dashboard/DashboardQuickActions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -66,7 +67,7 @@ export default function DashboardHomePage() {
       <div className="space-y-6">
         <NextActionCard action={progress?.nextAction} loading={progressLoading} />
 
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr]">
           <OnboardingChecklist
             steps={progress?.checklistSteps}
             currentStepIndex={progress?.currentStepIndex ?? 0}
@@ -89,34 +90,7 @@ export default function DashboardHomePage() {
           </div>
         </div>
 
-        {showQuickLinks ? (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Accès rapide</CardTitle>
-              <CardDescription>Actions du quotidien en caisse</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link to="/dashboard/scan">
-                  <ScanLine className="h-4 w-4" />
-                  Scanner un client
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/dashboard/qr">
-                  <QrCode className="h-4 w-4" />
-                  QR inscription
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/dashboard/customers">Mes clients</Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/dashboard/offers">Mes offres</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ) : null}
+        {showQuickLinks ? <DashboardQuickActions /> : null}
       </div>
     </DashboardLayout>
   );
