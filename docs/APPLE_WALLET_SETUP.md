@@ -23,7 +23,7 @@ Dans [Supabase Dashboard → Edge Functions → Secrets](https://supabase.com/da
 | `APPLE_APNS_KEY_ID` | Key ID de la clé APNs |
 | `APPLE_APNS_KEY_PEM` | Contenu du fichier `.p8` |
 | `APPLE_APNS_TEAM_ID` | Team ID |
-| `APPLE_APNS_USE_SANDBOX` | `true` en dev |
+| `APPLE_APNS_USE_SANDBOX` | `false` en prod (cartes réelles) · `true` uniquement en dev local |
 
 ## Déploiement CLI
 
@@ -68,6 +68,7 @@ supabase functions deploy wallet-apple-webhook --no-verify-jwt
 | `Secrets Apple manquants (APPLE_PASS_TYPE_IDENTIFIER)` | Identifiants Apple non définis |
 | Pass ne s'ouvre pas sur iPhone | Tester en HTTPS ou transférer le .pkpass par AirDrop |
 | QR non scannable | Vérifier que `qr_token` est bien encodé dans le pass |
+| APNs `BadEnvironmentKeyInToken` | Token sandbox envoyé en prod (ou l'inverse) → `APPLE_APNS_USE_SANDBOX=false` sur Supabase pour la prod ; le code retente automatiquement l'autre environnement |
 
 ## TODO Phase 7
 

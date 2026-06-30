@@ -4,9 +4,12 @@ function normalizePrivateKey(value: string) {
   return value.replaceAll("\\n", "\n");
 }
 
-function apnsHost() {
-  const useSandbox = (Deno.env.get("APPLE_APNS_USE_SANDBOX") || "").toLowerCase() === "true";
-  return useSandbox ? "api.sandbox.push.apple.com" : "api.push.apple.com";
+function prefersSandboxApns(): boolean {
+  return (Deno.env.get("APPLE_APNS_USE_SANDBOX") || "").toLowerCase() === "true";
+}
+
+function apnsHost(sandbox: boolean) {
+  return sandbox ? "api.sandbox.push.apple.com" : "api.push.apple.com";
 }
 
 async function createApnsJwt(): Promise<string | null> {
@@ -25,18 +28,20 @@ async function createApnsJwt(): Promise<string | null> {
     .sign(privateKey);
 }
 
-export async function sendPassKitPush(pushToken: string): Promise<{ ok: boolean; status: number; body: string }> {
-  const passTypeId = Deno.env.get("APPLE_PASS_TYPE_IDENTIFIER") || "";
-  const jwt = await createApnsJwt();
-  if (!jwt || !passTypeId) {
-    return {
-      ok: false,
-      status: 0,
-      body: "Secrets APNs manquants (APPLE_APNS_KEY_ID / APPLE_APNS_KEY_PEM / APPLE_PASS_TYPE_IDENTIFIER)",
-    };
-  }
+type ApnsPushResult = {
+  ok: boolean;
+  status: number;
+  body: string;
+  sandbox: boolean;
+};
 
-  const url = `https://${apnsHost()}/3/device/${pushToken}`;
+async function sendPassKitPushToHost(
+  pushToken: string,
+  sandbox: boolean,
+  jwt: string,
+  passTypeId: string,
+): Promise<ApnsPushResult> {
+  const url = `https://${apnsHost(sandbox)}/3/device/${pushToken}`;
   const headers: Record<string, string> = {
     authorization: `bearer ${jwt}`,
     "apns-topic": passTypeId,
@@ -62,7 +67,48 @@ export async function sendPassKitPush(pushToken: string): Promise<{ ok: boolean;
   } catch {
     body = "";
   }
-  return { ok: res.ok, status: res.status, body };
+
+  return { ok: res.ok, status: res.status, body, sandbox };
+}
+
+function shouldRetryAlternateApnsEnvironment(result: ApnsPushResult): boolean {
+  if (result.ok || result.status === 410) return false;
+  if (result.status !== 403) return false;
+  return result.body.includes("BadEnvironmentKeyInToken");
+}
+
+export async function sendPassKitPush(pushToken: string): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+}> {
+  const passTypeId = Deno.env.get("APPLE_PASS_TYPE_IDENTIFIER") || "";
+  const jwt = await createApnsJwt();
+  if (!jwt || !passTypeId) {
+    return {
+      ok: false,
+      status: 0,
+      body: "Secrets APNs manquants (APPLE_APNS_KEY_ID / APPLE_APNS_KEY_PEM / APPLE_PASS_TYPE_IDENTIFIER)",
+    };
+  }
+
+  const primarySandbox = prefersSandboxApns();
+  let result = await sendPassKitPushToHost(pushToken, primarySandbox, jwt, passTypeId);
+
+  if (shouldRetryAlternateApnsEnvironment(result)) {
+    const alternateSandbox = !primarySandbox;
+    const retry = await sendPassKitPushToHost(pushToken, alternateSandbox, jwt, passTypeId);
+    if (retry.ok || retry.status === 410) {
+      console.warn(
+        `[apple-apns] BadEnvironmentKeyInToken — env préféré=${primarySandbox ? "sandbox" : "production"}, `
+        + `succès via ${alternateSandbox ? "sandbox" : "production"}`,
+      );
+      return { ok: retry.ok, status: retry.status, body: retry.body };
+    }
+    result = retry;
+  }
+
+  return { ok: result.ok, status: result.status, body: result.body };
 }
 
 export async function pushPassKitUpdates(pushTokens: string[]): Promise<{

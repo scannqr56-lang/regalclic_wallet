@@ -24,7 +24,7 @@ Scanner restaurateur
 | `APPLE_APNS_KEY_ID` | Key ID de la clé APNs `.p8` |
 | `APPLE_APNS_KEY_PEM` | Contenu du fichier `.p8` |
 | `APPLE_APNS_TEAM_ID` | Team ID Apple (souvent = `APPLE_TEAM_ID`) |
-| `APPLE_APNS_USE_SANDBOX` | `true` en dev, `false` en prod |
+| `APPLE_APNS_USE_SANDBOX` | `false` en prod · `true` en dev |
 | `APPLE_PASS_TYPE_IDENTIFIER` | Déjà configuré (Phase 4) |
 
 ### Configurer le secret worker
@@ -100,7 +100,7 @@ Réponse attendue : `{ "processed": 1, "failed": 0, ... }`
 | Jobs jamais traités | Cron GitHub non configuré ou `WALLET_SYNC_SECRET` manquant |
 | Google non mis à jour | Credentials Google ou `google_object_id` absent |
 | Apple non mis à jour | Pas d’enregistrement dans `apple_wallet_registrations` (client n’a pas ajouté le pass) |
-| APNs échec | `APPLE_APNS_USE_SANDBOX` incorrect ou clé APNs invalide |
+| APNs échec | `BadEnvironmentKeyInToken` → passer `APPLE_APNS_USE_SANDBOX=false` en prod ; retry auto sandbox/prod dans `apple-apns.ts` |
 
 ## Apple : enregistrement appareil
 
