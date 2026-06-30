@@ -32,14 +32,19 @@ function PointsBalanceHero({ model }) {
 
 function StampBalanceHero({ model }) {
   return (
-    <div className="text-center">
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
-        {model.balanceLabel}
-      </p>
-      <p className="text-3xl font-bold tabular-nums text-white sm:text-4xl">
-        {model.balance}
-        <span className="text-xl font-semibold text-white/70 sm:text-2xl"> / {model.stampsRequired}</span>
-      </p>
+    <div className="grid grid-cols-2 gap-3 text-center">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
+          {model.balanceLabel}
+        </p>
+        <p className="text-3xl font-bold tabular-nums text-white sm:text-4xl">{model.balance}</p>
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
+          Objectif
+        </p>
+        <p className="text-3xl font-bold tabular-nums text-white sm:text-4xl">{model.stampsRequired}</p>
+      </div>
     </div>
   );
 }

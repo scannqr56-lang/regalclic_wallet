@@ -164,19 +164,24 @@ function buildGoogleLinksModule(vm: WalletCardViewModel) {
   };
 }
 
-function buildGoogleLoyaltyPointsFields(fields: ReturnType<typeof mapViewModelToGoogleFields>) {
-  const loyaltyBalance = fields.loyaltyPointsBalanceDisplay
-    ? { string: fields.loyaltyPointsBalanceDisplay }
-    : { int: fields.loyaltyPointsBalance };
+/** Solde Google en entier uniquement — évite le conflit int/string au PATCH. */
+function buildGoogleLoyaltyPointsBalance(intValue: number): Record<string, unknown> {
+  return {
+    int: intValue,
+    string: null,
+    double: null,
+  };
+}
 
+function buildGoogleLoyaltyPointsFields(fields: ReturnType<typeof mapViewModelToGoogleFields>) {
   return {
     loyaltyPoints: {
       label: fields.loyaltyPointsLabel,
-      balance: loyaltyBalance,
+      balance: buildGoogleLoyaltyPointsBalance(fields.loyaltyPointsBalance),
     },
     secondaryLoyaltyPoints: {
       label: fields.secondaryLoyaltyPointsLabel,
-      balance: { int: fields.secondaryLoyaltyPointsBalance },
+      balance: buildGoogleLoyaltyPointsBalance(fields.secondaryLoyaltyPointsBalance),
     },
   };
 }

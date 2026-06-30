@@ -748,8 +748,6 @@ export type GoogleWalletFieldSet = {
   accountName: string;
   loyaltyPointsLabel: string;
   loyaltyPointsBalance: number;
-  /** Affichage « 1 / 10 » pour les programmes tampons (balance Google en string). */
-  loyaltyPointsBalanceDisplay: string | null;
   secondaryLoyaltyPointsLabel: string;
   secondaryLoyaltyPointsBalance: number;
   textModulesData: GoogleTextModule[];
@@ -775,6 +773,13 @@ export function buildGoogleSecondaryLoyaltyPoints(vm: WalletCardViewModel): {
   label: string;
   balance: { int: number };
 } {
+  if (vm.programType === "stamps" && vm.stampsRequired) {
+    return {
+      label: "Objectif",
+      balance: { int: vm.stampsRequired },
+    };
+  }
+
   if (vm.rewardsAvailable > 0) {
     return {
       label: vm.rewardsAvailable > 1 ? "Récompenses" : "Récompense",
@@ -856,19 +861,27 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
   };
 }
 
-/** Layout tampons — compteur seul (loyaltyPoints) + client / récompense / offre. */
+/** Layout tampons — Tampons + Objectif sur la première ligne. */
 export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
   const { client, reward, promo, rewardUnlocked } = GOOGLE_FACE_MODULE_IDS;
   return {
     cardTemplateOverride: {
       cardRowTemplateInfos: [
         {
-          oneItem: {
-            item: {
+          twoItems: {
+            startItem: {
               firstValue: {
                 fields: [
                   { fieldPath: "object.loyaltyPoints.label" },
                   { fieldPath: "object.loyaltyPoints.balance" },
+                ],
+              },
+            },
+            endItem: {
+              firstValue: {
+                fields: [
+                  { fieldPath: "object.secondaryLoyaltyPoints.label" },
+                  { fieldPath: "object.secondaryLoyaltyPoints.balance" },
                 ],
               },
             },
@@ -1041,9 +1054,6 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
     accountName: vm.customerDisplayName,
     loyaltyPointsLabel: vm.balanceLabel,
     loyaltyPointsBalance: vm.balance,
-    loyaltyPointsBalanceDisplay: isStamps
-      ? formatStampProgressText(vm.balance, vm.stampsRequired ?? 0)
-      : null,
     secondaryLoyaltyPointsLabel: secondary.label,
     secondaryLoyaltyPointsBalance: secondary.balance.int,
     textModulesData: textModules,
