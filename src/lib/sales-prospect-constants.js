@@ -148,64 +148,36 @@ export function getBusinessTypeLabel(value) {
 }
 
 export function createEmptyProspectForm() {
-  const today = new Date().toISOString().slice(0, 10);
   return {
-    commercial_name: '',
-    commercial_email: '',
-    commercial_phone: '',
     commercial_code: '',
-    contact_date: today,
-    contact_channel: '',
     business_name: '',
     business_type: '',
     city: '',
     postal_code: '',
     address: '',
-    area: '',
-    google_maps_url: '',
-    website_url: '',
-    instagram_url: '',
-    facebook_url: '',
-    tiktok_url: '',
-    other_url: '',
     contact_name: '',
     contact_role: '',
-    phone_landline: '',
     phone_mobile: '',
     email: '',
     preferred_contact_method: '',
     has_loyalty_system: '',
-    loyalty_system_details: '',
     has_pos_or_kiosk: '',
-    pos_or_kiosk_name: '',
     loyalty_interest: '',
     main_problem: '',
     objections: [],
-    objection_notes: '',
-    expressed_need: '',
-    commercial_notes: '',
     interest_level: '',
     wants_demo: '',
     demo_done: false,
     follow_up_date: '',
     next_action: '',
     status: 'new',
-    offer_presented: '',
-    price_announced: '',
-    setup_fee_announced: '',
-    launch_offer_presented: false,
-    offer_comment: '',
-    photo_url: '',
-    instagram_screenshot_url: '',
-    menu_url: '',
-    document_url: '',
   };
 }
 
 export function validateProspectFormClient(form) {
   const errors = [];
-  if (!form.commercial_name?.trim() && !form.commercial_code?.trim()) {
-    errors.push('Indiquez le nom du commercial ou le code commercial.');
+  if (!form.commercial_code?.trim()) {
+    errors.push('Le code commercial est requis.');
   }
   if (!form.business_name?.trim()) errors.push('Le nom du commerce est requis.');
   if (!form.business_type) errors.push('Le type de commerce est requis.');

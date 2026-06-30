@@ -104,14 +104,8 @@ function assertCommercialCodeAllowed(code: string): void {
 }
 
 export function validateProspectCreatePayload(body: ProspectPayload) {
-  const commercialName = trimOrNull(body.commercial_name, 200);
-  const commercialCode = trimOrNull(body.commercial_code, 80);
-  if (!commercialName && !commercialCode) {
-    throw new Error("Indiquez le nom du commercial ou le code commercial");
-  }
-  if (commercialCode) {
-    assertCommercialCodeAllowed(commercialCode);
-  }
+  const commercialCode = trimRequired(body.commercial_code, "code commercial");
+  assertCommercialCodeAllowed(commercialCode);
 
   const businessName = trimRequired(body.business_name, "nom du commerce");
   const businessType = trimRequired(body.business_type, "type de commerce");
@@ -134,12 +128,12 @@ export function validateProspectCreatePayload(body: ProspectPayload) {
   }
 
   return {
-    commercial_name: commercialName,
-    commercial_email: trimOrNull(body.commercial_email, 320),
-    commercial_phone: trimOrNull(body.commercial_phone, 40),
-    commercial_code: commercialCode,
-    contact_date: parseDateOrNull(body.contact_date),
-    contact_channel: trimOrNull(body.contact_channel, 40),
+    commercial_name: null,
+    commercial_email: null,
+    commercial_phone: null,
+    commercial_code: commercialCode.toUpperCase(),
+    contact_date: parseDateOrNull(body.contact_date) || new Date().toISOString().slice(0, 10),
+    contact_channel: null,
 
     business_name: businessName,
     business_type: businessType,
@@ -180,7 +174,7 @@ export function validateProspectCreatePayload(body: ProspectPayload) {
     next_action: trimOrNull(body.next_action, 80),
     status,
 
-    offer_presented: trimOrNull(body.offer_presented, 80),
+    offer_presented: trimOrNull(body.offer_presented, 80) || "wallet",
     price_announced: trimOrNull(body.price_announced, 120),
     setup_fee_announced: trimOrNull(body.setup_fee_announced, 120),
     launch_offer_presented: parseBoolean(body.launch_offer_presented, false),

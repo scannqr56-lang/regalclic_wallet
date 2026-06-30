@@ -8,7 +8,6 @@ import {
   FormGrid,
   FormInput,
   FormSelect,
-  FormTextarea,
   ObjectionCheckboxes,
 } from '@/components/prospects/ProspectFormFields';
 import { FormSection, FormStickyFooter } from '@/components/ui/form-layout';
@@ -17,7 +16,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { submitSalesProspect } from '@/lib/prospects';
 import {
   BUSINESS_TYPE_OPTIONS,
-  CONTACT_CHANNEL_OPTIONS,
   CONTACT_ROLE_OPTIONS,
   createEmptyProspectForm,
   LOYALTY_INTEREST_OPTIONS,
@@ -25,7 +23,6 @@ import {
   MAIN_PROBLEM_OPTIONS,
   NEXT_ACTION_OPTIONS,
   OBJECTION_OPTIONS,
-  OFFER_PRESENTED_OPTIONS,
   PREFERRED_CONTACT_OPTIONS,
   PROSPECT_INTEREST_OPTIONS,
   PROSPECT_STATUS_OPTIONS,
@@ -53,10 +50,7 @@ export default function ProspectFormPage() {
 
   const resetForm = (keepCommercial = true) => {
     const fresh = createEmptyProspectForm();
-    if (keepCommercial) {
-      fresh.commercial_name = form.commercial_name;
-      fresh.commercial_email = form.commercial_email;
-      fresh.commercial_phone = form.commercial_phone;
+    if (keepCommercial && form.commercial_code) {
       fresh.commercial_code = form.commercial_code;
     } else if (codeFromUrl) {
       fresh.commercial_code = codeFromUrl.toUpperCase();
@@ -79,12 +73,11 @@ export default function ProspectFormPage() {
     try {
       const payload = {
         ...form,
-        commercial_name: form.commercial_name.trim() || null,
-        commercial_code: form.commercial_code.trim() || null,
+        commercial_code: form.commercial_code.trim().toUpperCase(),
+        contact_date: new Date().toISOString().slice(0, 10),
         demo_done: Boolean(form.demo_done),
-        launch_offer_presented: Boolean(form.launch_offer_presented),
         follow_up_date: form.follow_up_date || null,
-        contact_date: form.contact_date || null,
+        offer_presented: 'wallet',
       };
       const result = await submitSalesProspect(payload);
       setSuccess(true);
@@ -133,7 +126,6 @@ export default function ProspectFormPage() {
         <h1 className="text-2xl font-bold text-rc-navy sm:text-3xl">Ajouter un prospect RegalClic</h1>
         <p className="text-sm leading-relaxed text-slate-600">
           Renseignez les informations du commerce approché afin de permettre le suivi commercial.
-          Utilisez ce formulaire après chaque échange avec un commerce.
         </p>
         {codeFromUrl ? (
           <p className="rounded-lg bg-rc-teal/10 px-3 py-2 text-xs text-rc-navy">
@@ -143,27 +135,15 @@ export default function ProspectFormPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 pb-4">
-        <FormSection title="1. Informations du commercial" description="Qui a renseigné ce prospect ?">
-          <FormGrid>
-            <FormField label="Nom du commercial" htmlFor="commercial_name">
-              <FormInput id="commercial_name" value={form.commercial_name} onChange={(v) => update('commercial_name', v)} />
-            </FormField>
-            <FormField label="Code commercial / apporteur" htmlFor="commercial_code" required>
-              <FormInput id="commercial_code" value={form.commercial_code} onChange={(v) => update('commercial_code', v)} placeholder="Ex. YASSIN" />
-            </FormField>
-            <FormField label="Email du commercial" htmlFor="commercial_email">
-              <FormInput id="commercial_email" type="email" value={form.commercial_email} onChange={(v) => update('commercial_email', v)} />
-            </FormField>
-            <FormField label="Téléphone du commercial" htmlFor="commercial_phone">
-              <FormInput id="commercial_phone" type="tel" value={form.commercial_phone} onChange={(v) => update('commercial_phone', v)} />
-            </FormField>
-            <FormField label="Date du contact" htmlFor="contact_date">
-              <FormInput id="contact_date" type="date" value={form.contact_date} onChange={(v) => update('contact_date', v)} />
-            </FormField>
-            <FormField label="Mode de contact" htmlFor="contact_channel">
-              <FormSelect id="contact_channel" value={form.contact_channel} onChange={(v) => update('contact_channel', v)} options={CONTACT_CHANNEL_OPTIONS} />
-            </FormField>
-          </FormGrid>
+        <FormSection title="1. Code commercial" description="Saisissez le code qui vous a été communiqué.">
+          <FormField label="Code commercial" htmlFor="commercial_code" required>
+            <FormInput
+              id="commercial_code"
+              value={form.commercial_code}
+              onChange={(v) => update('commercial_code', v.toUpperCase())}
+              placeholder="Ex. YASSIN"
+            />
+          </FormField>
         </FormSection>
 
         <FormSection title="2. Informations du commerce">
@@ -183,27 +163,6 @@ export default function ProspectFormPage() {
             <FormField label="Adresse complète" htmlFor="address" className="sm:col-span-2">
               <FormInput id="address" value={form.address} onChange={(v) => update('address', v)} />
             </FormField>
-            <FormField label="Zone / quartier" htmlFor="area">
-              <FormInput id="area" value={form.area} onChange={(v) => update('area', v)} />
-            </FormField>
-            <FormField label="Lien Google Maps" htmlFor="google_maps_url">
-              <FormInput id="google_maps_url" value={form.google_maps_url} onChange={(v) => update('google_maps_url', v)} placeholder="https://..." />
-            </FormField>
-            <FormField label="Site web" htmlFor="website_url">
-              <FormInput id="website_url" value={form.website_url} onChange={(v) => update('website_url', v)} />
-            </FormField>
-            <FormField label="Instagram" htmlFor="instagram_url">
-              <FormInput id="instagram_url" value={form.instagram_url} onChange={(v) => update('instagram_url', v)} />
-            </FormField>
-            <FormField label="Facebook" htmlFor="facebook_url">
-              <FormInput id="facebook_url" value={form.facebook_url} onChange={(v) => update('facebook_url', v)} />
-            </FormField>
-            <FormField label="TikTok" htmlFor="tiktok_url">
-              <FormInput id="tiktok_url" value={form.tiktok_url} onChange={(v) => update('tiktok_url', v)} />
-            </FormField>
-            <FormField label="Autre lien utile" htmlFor="other_url">
-              <FormInput id="other_url" value={form.other_url} onChange={(v) => update('other_url', v)} />
-            </FormField>
           </FormGrid>
         </FormSection>
 
@@ -215,16 +174,13 @@ export default function ProspectFormPage() {
             <FormField label="Rôle du contact" htmlFor="contact_role">
               <FormSelect id="contact_role" value={form.contact_role} onChange={(v) => update('contact_role', v)} options={CONTACT_ROLE_OPTIONS} />
             </FormField>
-            <FormField label="Téléphone fixe" htmlFor="phone_landline">
-              <FormInput id="phone_landline" type="tel" value={form.phone_landline} onChange={(v) => update('phone_landline', v)} />
-            </FormField>
             <FormField label="Téléphone mobile" htmlFor="phone_mobile">
               <FormInput id="phone_mobile" type="tel" value={form.phone_mobile} onChange={(v) => update('phone_mobile', v)} />
             </FormField>
             <FormField label="Email" htmlFor="email">
               <FormInput id="email" type="email" value={form.email} onChange={(v) => update('email', v)} />
             </FormField>
-            <FormField label="Moyen préféré pour être recontacté" htmlFor="preferred_contact_method">
+            <FormField label="Moyen préféré pour être recontacté" htmlFor="preferred_contact_method" className="sm:col-span-2">
               <FormSelect id="preferred_contact_method" value={form.preferred_contact_method} onChange={(v) => update('preferred_contact_method', v)} options={PREFERRED_CONTACT_OPTIONS} />
             </FormField>
           </FormGrid>
@@ -238,13 +194,7 @@ export default function ProspectFormPage() {
             <FormField label="Caisse ou borne ?" htmlFor="has_pos_or_kiosk">
               <FormSelect id="has_pos_or_kiosk" value={form.has_pos_or_kiosk} onChange={(v) => update('has_pos_or_kiosk', v)} options={YES_NO_UNKNOWN_OPTIONS} />
             </FormField>
-            <FormField label="Description du système actuel" htmlFor="loyalty_system_details" className="sm:col-span-2">
-              <FormTextarea id="loyalty_system_details" value={form.loyalty_system_details} onChange={(v) => update('loyalty_system_details', v)} />
-            </FormField>
-            <FormField label="Nom logiciel caisse / borne" htmlFor="pos_or_kiosk_name">
-              <FormInput id="pos_or_kiosk_name" value={form.pos_or_kiosk_name} onChange={(v) => update('pos_or_kiosk_name', v)} />
-            </FormField>
-            <FormField label="Intérêt pour la fidélité ?" htmlFor="loyalty_interest">
+            <FormField label="Intérêt pour la fidélité ?" htmlFor="loyalty_interest" className="sm:col-span-2">
               <FormSelect id="loyalty_interest" value={form.loyalty_interest} onChange={(v) => update('loyalty_interest', v)} options={LOYALTY_INTEREST_OPTIONS} />
             </FormField>
           </FormGrid>
@@ -261,15 +211,6 @@ export default function ProspectFormPage() {
                 selected={form.objections}
                 onChange={(v) => update('objections', v)}
               />
-            </FormField>
-            <FormField label="Notes sur les objections" htmlFor="objection_notes">
-              <FormTextarea id="objection_notes" value={form.objection_notes} onChange={(v) => update('objection_notes', v)} />
-            </FormField>
-            <FormField label="Besoin exprimé (libre)" htmlFor="expressed_need">
-              <FormTextarea id="expressed_need" value={form.expressed_need} onChange={(v) => update('expressed_need', v)} />
-            </FormField>
-            <FormField label="Notes du commercial" htmlFor="commercial_notes">
-              <FormTextarea id="commercial_notes" value={form.commercial_notes} onChange={(v) => update('commercial_notes', v)} rows={5} />
             </FormField>
           </div>
         </FormSection>
@@ -302,52 +243,6 @@ export default function ProspectFormPage() {
             </FormField>
             <FormField label="Prochaine action" htmlFor="next_action">
               <FormSelect id="next_action" value={form.next_action} onChange={(v) => update('next_action', v)} options={NEXT_ACTION_OPTIONS} />
-            </FormField>
-          </FormGrid>
-        </FormSection>
-
-        <FormSection title="7. Offre présentée">
-          <FormGrid>
-            <FormField label="Offre présentée" htmlFor="offer_presented">
-              <FormSelect id="offer_presented" value={form.offer_presented} onChange={(v) => update('offer_presented', v)} options={OFFER_PRESENTED_OPTIONS} />
-            </FormField>
-            <FormField label="Prix annoncé" htmlFor="price_announced">
-              <FormInput id="price_announced" value={form.price_announced} onChange={(v) => update('price_announced', v)} />
-            </FormField>
-            <FormField label="Frais de mise en place annoncés" htmlFor="setup_fee_announced">
-              <FormInput id="setup_fee_announced" value={form.setup_fee_announced} onChange={(v) => update('setup_fee_announced', v)} />
-            </FormField>
-            <FormField label="Offre de lancement proposée ?" htmlFor="launch_offer_presented">
-              <label className="flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  id="launch_offer_presented"
-                  type="checkbox"
-                  checked={form.launch_offer_presented}
-                  onChange={(e) => update('launch_offer_presented', e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300"
-                />
-                Oui
-              </label>
-            </FormField>
-            <FormField label="Commentaire sur l'offre" htmlFor="offer_comment" className="sm:col-span-2">
-              <FormTextarea id="offer_comment" value={form.offer_comment} onChange={(v) => update('offer_comment', v)} />
-            </FormField>
-          </FormGrid>
-        </FormSection>
-
-        <FormSection title="8. Pièces ou liens utiles">
-          <FormGrid>
-            <FormField label="Lien photo commerce" htmlFor="photo_url">
-              <FormInput id="photo_url" value={form.photo_url} onChange={(v) => update('photo_url', v)} placeholder="https://..." />
-            </FormField>
-            <FormField label="Lien capture Instagram" htmlFor="instagram_screenshot_url">
-              <FormInput id="instagram_screenshot_url" value={form.instagram_screenshot_url} onChange={(v) => update('instagram_screenshot_url', v)} />
-            </FormField>
-            <FormField label="Lien menu" htmlFor="menu_url">
-              <FormInput id="menu_url" value={form.menu_url} onChange={(v) => update('menu_url', v)} />
-            </FormField>
-            <FormField label="Lien autre document" htmlFor="document_url">
-              <FormInput id="document_url" value={form.document_url} onChange={(v) => update('document_url', v)} />
             </FormField>
           </FormGrid>
         </FormSection>
