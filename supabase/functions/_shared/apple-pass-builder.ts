@@ -15,7 +15,7 @@ import {
   type WalletCardDbInput,
   type WalletCardViewModel,
 } from "./wallet-card-model.ts";
-import { generateAppleStampStrips } from "./stamp-strip-generator.ts";
+import { generateAppleStampStrips, resolveStampPassLabelRgb } from "./stamp-strip-generator.ts";
 import {
   applyAppleNotificationHints,
   type AppleNotificationHints,
@@ -296,7 +296,9 @@ export async function buildApplePkpass(input: ApplePassBuildInput): Promise<Uint
 
   const images = await resolvePassImages(vm.logoUrl, vm.heroUrl, vm);
   const backgroundColor = resolvePrimaryRgb(vm.primaryColorHex);
-  const labelColor = resolveLabelRgb(vm.labelColorHex);
+  const labelColor = stampStripFace && images.strip1x
+    ? resolveStampPassLabelRgb(vm.primaryColorHex, vm.labelColorHex)
+    : resolveLabelRgb(vm.labelColorHex);
 
   const passJson: Record<string, unknown> = {
     formatVersion: 1,

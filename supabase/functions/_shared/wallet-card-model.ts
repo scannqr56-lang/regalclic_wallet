@@ -560,15 +560,28 @@ export type ApplePassFieldSet = {
 };
 
 export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFieldSet {
-  const headerFields: ApplePassField[] = [{
-    key: "business",
-    label: WALLET_DEFAULT_TEXTS.loyaltyLabel,
-    value: vm.businessName,
-  }];
-
   const isStamps = vm.programType === "stamps" && vm.stampsRequired;
-  /** Bandeau strip = visuel des tampons ; pas de gros texte par-dessus (storeCard). */
   const stampStripFace = isStamps && Boolean(vm.stampStripImageUrl);
+
+  const headerFields: ApplePassField[] = stampStripFace
+    ? [
+      {
+        key: "business",
+        label: WALLET_DEFAULT_TEXTS.loyaltyLabel,
+        value: vm.businessName,
+      },
+      {
+        key: "stamp_count",
+        label: "Tampons",
+        value: formatStampProgressText(vm.balance, vm.stampsRequired ?? 0),
+        changeMessage: vm.balanceChangeMessage,
+      },
+    ]
+    : [{
+      key: "business",
+      label: WALLET_DEFAULT_TEXTS.loyaltyLabel,
+      value: vm.businessName,
+    }];
 
   const primaryFields: ApplePassField[] = stampStripFace
     ? []
@@ -620,7 +633,7 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
     if (vm.promoMessage) {
       auxiliaryFields.push({
         key: "promo_face",
-        label: vm.promoLabel || WALLET_DEFAULT_TEXTS.promoLabel,
+        label: "Offre",
         value: vm.promoMessage,
       });
     }
