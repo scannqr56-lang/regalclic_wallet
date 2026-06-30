@@ -30,17 +30,21 @@ function PointsBalanceHero({ model }) {
   );
 }
 
-function StampBalanceHero({ model }) {
+function StampProgressRight({ model, size = 'md' }) {
   const stampFace = `${model.balance}/${model.stampsRequired}`;
+  const valueClass = size === 'lg'
+    ? 'text-[2rem] font-bold leading-none sm:text-[2.35rem]'
+    : 'text-xl font-bold leading-none sm:text-2xl';
+
   return (
-    <div className="rounded-xl border border-white/20 bg-black/20 px-4 py-3 text-center">
+    <div className="text-right">
       <p
-        className="text-[10px] font-semibold uppercase tracking-[0.18em]"
+        className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-90"
         style={{ color: model.labelColor }}
       >
         {model.balanceLabel}
       </p>
-      <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight text-white sm:text-5xl">
+      <p className={cn('mt-0.5 tabular-nums tracking-tight text-white', valueClass)}>
         {stampFace}
       </p>
     </div>
@@ -49,11 +53,15 @@ function StampBalanceHero({ model }) {
 
 function StampCardBody({ model, variant = 'google' }) {
   return (
-    <div className="space-y-4">
+    <div className={cn(variant === 'google' ? 'space-y-1' : 'space-y-4')}>
       {model.hasRewardUnlocked ? (
         <RewardUnlockedBanner text={model.rewardUnlockedBannerText} />
       ) : null}
-      {variant === 'google' ? <StampBalanceHero model={model} /> : null}
+      {variant === 'google' ? (
+        <div className="flex justify-end pb-0.5">
+          <StampProgressRight model={model} size="lg" />
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-3">
         <PreviewField label="Client" value={model.customerDisplayName} labelColor={model.labelColor} />
         <PreviewField label="Récompense" value={model.rewardLabel} labelColor={model.labelColor} />
@@ -113,14 +121,7 @@ function AppleCardFace({ model }) {
             <p className="truncate text-xs font-medium text-white/85">{model.businessName}</p>
           </div>
           {isStamps ? (
-            <div className="shrink-0 text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
-                {model.balanceLabel}
-              </p>
-              <p className="text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
-                {model.balance}/{model.stampsRequired}
-              </p>
-            </div>
+            <StampProgressRight model={model} />
           ) : (
             <div className="min-w-0 flex-1 text-right">
               <p className="text-[10px] uppercase tracking-wide text-white/70" style={{ color: model.labelColor }}>

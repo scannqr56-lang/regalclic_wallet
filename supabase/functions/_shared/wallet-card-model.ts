@@ -771,6 +771,7 @@ export const GOOGLE_FACE_MODULE_IDS = {
   promo: "face_promo",
   stamps: "face_stamps",
   stampsImage: "face_stamps_img",
+  spacer: "face_spacer",
   rewardUnlocked: "face_reward_unlocked",
 } as const;
 
@@ -859,26 +860,22 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
   };
 }
 
-/** Layout tampons — compteur « Tampons 2/10 » via module texte (fiable sur Google). */
+/** Layout tampons — compteur à droite, puis client / récompense sans ligne vide intermédiaire. */
 export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
-  const { client, reward, promo, rewardUnlocked, stamps } = GOOGLE_FACE_MODULE_IDS;
+  const { client, reward, promo, stamps, spacer } = GOOGLE_FACE_MODULE_IDS;
   return {
     cardTemplateOverride: {
       cardRowTemplateInfos: [
         {
-          oneItem: {
-            item: {
+          twoItems: {
+            startItem: {
               firstValue: {
-                fields: [{ fieldPath: `object.textModulesData['${stamps}']` }],
+                fields: [{ fieldPath: `object.textModulesData['${spacer}']` }],
               },
             },
-          },
-        },
-        {
-          oneItem: {
-            item: {
+            endItem: {
               firstValue: {
-                fields: [{ fieldPath: `object.textModulesData['${rewardUnlocked}']` }],
+                fields: [{ fieldPath: `object.textModulesData['${stamps}']` }],
               },
             },
           },
@@ -937,16 +934,14 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
 
   if (isStamps) {
     textModules.push({
+      id: GOOGLE_FACE_MODULE_IDS.spacer,
+      header: "\u200b",
+      body: "\u200b",
+    });
+    textModules.push({
       id: GOOGLE_FACE_MODULE_IDS.stamps,
       header: vm.balanceLabel,
       body: formatStampFaceText(vm.balance, vm.stampsRequired ?? 0),
-    });
-    textModules.push({
-      id: GOOGLE_FACE_MODULE_IDS.rewardUnlocked,
-      header: vm.hasRewardUnlocked ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort : " ",
-      body: vm.hasRewardUnlocked
-        ? (vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel)
-        : " ",
     });
   }
 
@@ -977,7 +972,9 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
             ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort
             : " ")),
       body: isStamps
-        ? (vm.promoMessage || vm.faceTagline)
+        ? (vm.hasRewardUnlocked
+          ? `${vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel} — ${vm.promoMessage || vm.faceTagline}`
+          : (vm.promoMessage || vm.faceTagline))
         : (vm.promoMessage
           ? vm.promoMessage
           : (vm.hasRewardUnlocked
