@@ -15,7 +15,7 @@ import {
   type WalletCardDbInput,
   type WalletCardViewModel,
 } from "./wallet-card-model.ts";
-import { generateStampStripPng } from "./stamp-strip-generator.ts";
+import { generateAppleStampStrips } from "./stamp-strip-generator.ts";
 import {
   applyAppleNotificationHints,
   type AppleNotificationHints,
@@ -119,16 +119,15 @@ async function resolvePassImages(
 
   if (viewModel?.programType === "stamps" && viewModel.stampsRequired) {
     try {
-      strip2x = await generateStampStripPng({
+      const strips = await generateAppleStampStrips({
         filled: viewModel.balance,
         total: viewModel.stampsRequired,
         backgroundHex: viewModel.primaryColorHex,
         foregroundHex: viewModel.labelColorHex,
-        width: 750,
-        height: 112,
         rewardReady: viewModel.hasRewardUnlocked,
       });
-      strip1x = strip2x;
+      strip1x = strips.strip1x;
+      strip2x = strips.strip2x;
     } catch (error) {
       console.error("[apple-pass] stamp strip generation failed", error);
     }
@@ -259,7 +258,11 @@ export async function buildApplePkpass(input: ApplePassBuildInput): Promise<Uint
   const vm = input.viewModel;
   const fields = mapViewModelToAppleFields(vm);
 
-  if (vm.promoMessage || input.notificationHints?.promoNotifyValue) {
+  const stampStripFace = vm.programType === "stamps"
+    && Boolean(vm.stampsRequired)
+    && Boolean(vm.stampStripImageUrl);
+
+  if ((vm.promoMessage || input.notificationHints?.promoNotifyValue) && !stampStripFace) {
     fields.auxiliaryFields.unshift({
       key: "tagline",
       label: " ",

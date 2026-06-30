@@ -1,4 +1,4 @@
-import { generateStampStripPng } from "../_shared/stamp-strip-generator.ts";
+import { generateStampStripPng, GOOGLE_STAMP_STRIP } from "../_shared/stamp-strip-generator.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,8 +34,8 @@ Deno.serve(async (req) => {
       total,
       backgroundHex: bg,
       foregroundHex: fg,
-      width: 750,
-      height: 112,
+      width: GOOGLE_STAMP_STRIP.width,
+      height: GOOGLE_STAMP_STRIP.height,
       rewardReady: url.searchParams.get("reward") === "1",
     });
 

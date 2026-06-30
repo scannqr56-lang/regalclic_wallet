@@ -566,27 +566,44 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
     value: vm.businessName,
   }];
 
-  const isStamps = vm.programType === "stamps" && vm.stampGridText;
+  const isStamps = vm.programType === "stamps" && vm.stampsRequired;
+  /** Bandeau strip = visuel des tampons ; pas de gros texte par-dessus (storeCard). */
+  const stampStripFace = isStamps && Boolean(vm.stampStripImageUrl);
 
-  const primaryFields: ApplePassField[] = isStamps
-    ? [{
-      key: "stamps",
-      label: "Tampons",
-      value: formatStampProgressText(vm.balance, vm.stampsRequired ?? 0),
-      changeMessage: vm.balanceChangeMessage,
-    }]
+  const primaryFields: ApplePassField[] = stampStripFace
+    ? []
+    : isStamps
+      ? [{
+        key: "stamps",
+        label: "Tampons",
+        value: formatStampProgressText(vm.balance, vm.stampsRequired ?? 0),
+        changeMessage: vm.balanceChangeMessage,
+      }]
+      : [{
+        key: "balance",
+        label: vm.balanceLabel,
+        value: String(vm.balance),
+        changeMessage: vm.balanceChangeMessage,
+      }];
+
+  const secondaryFields: ApplePassField[] = isStamps
+    ? [
+      {
+        key: "customer",
+        label: "Client",
+        value: vm.customerDisplayName,
+      },
+      {
+        key: "reward",
+        label: "Récompense",
+        value: vm.rewardLabel,
+      },
+    ]
     : [{
-      key: "balance",
-      label: vm.balanceLabel,
-      value: String(vm.balance),
-      changeMessage: vm.balanceChangeMessage,
+      key: "customer",
+      label: "Client",
+      value: vm.customerDisplayName,
     }];
-
-  const secondaryFields: ApplePassField[] = [{
-    key: "customer",
-    label: "Client",
-    value: vm.customerDisplayName,
-  }];
 
   const auxiliaryFields: ApplePassField[] = [];
 
@@ -600,18 +617,20 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
   }
 
   if (isStamps) {
-    auxiliaryFields.push(
-      {
-        key: "reward",
-        label: "Récompense",
-        value: vm.rewardLabel,
-      },
-      {
+    if (vm.promoMessage) {
+      auxiliaryFields.push({
+        key: "promo_face",
+        label: vm.promoLabel || WALLET_DEFAULT_TEXTS.promoLabel,
+        value: vm.promoMessage,
+      });
+    }
+    if (!stampStripFace) {
+      auxiliaryFields.push({
         key: "progress",
         label: "Progression",
         value: `${vm.balance}/${vm.stampsRequired ?? "?"}`,
-      },
-    );
+      });
+    }
   } else {
     auxiliaryFields.push(
       {
