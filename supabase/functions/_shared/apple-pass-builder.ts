@@ -16,6 +16,7 @@ import {
   type WalletCardViewModel,
 } from "./wallet-card-model.ts";
 import { resolveStampPassLabelRgb } from "./stamp-strip-generator.ts";
+import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 import {
   applyAppleNotificationHints,
   type AppleNotificationHints,
@@ -66,6 +67,48 @@ function resolveAppleLogoText(vm: WalletCardViewModel): string {
   return `${REGALCLIC_WALLET_ISSUER_NAME}\n${vm.businessName}`;
 }
 
+const APPLE_LOGO_1X = { width: 160, height: 50 } as const;
+const APPLE_LOGO_2X = { width: 320, height: 100 } as const;
+
+async function fitApplePassLogoPng(
+  bytes: Uint8Array,
+  maxWidth: number,
+  maxHeight: number,
+): Promise<Uint8Array> {
+  const decoded = await Image.decode(bytes);
+  const scale = Math.min(maxWidth / decoded.width, maxHeight / decoded.height, 1);
+  const width = Math.max(1, Math.round(decoded.width * scale));
+  const height = Math.max(1, Math.round(decoded.height * scale));
+  const fitted = decoded.resize(width, height);
+  return await fitted.encode();
+}
+
+async function resolveApplePassLogoBytes(
+  businessLogoUrl?: string | null,
+): Promise<{ logo1x: Uint8Array; logo2x: Uint8Array; hasBusinessLogo: boolean }> {
+  const businessBytes = businessLogoUrl?.trim()
+    ? await fetchImageBytes(businessLogoUrl)
+    : null;
+  const fallbackBytes = await fetchImageBytes(resolveFallbackLogoUrl());
+  const source = businessBytes || fallbackBytes;
+
+  if (!source) {
+    const icon = base64ToBytes(ICON_2X_B64);
+    return { logo1x: icon, logo2x: icon, hasBusinessLogo: false };
+  }
+
+  const [logo1x, logo2x] = await Promise.all([
+    fitApplePassLogoPng(source, APPLE_LOGO_1X.width, APPLE_LOGO_1X.height),
+    fitApplePassLogoPng(source, APPLE_LOGO_2X.width, APPLE_LOGO_2X.height),
+  ]);
+
+  return {
+    logo1x,
+    logo2x,
+    hasBusinessLogo: Boolean(businessBytes),
+  };
+}
+
 const ICON_1X_B64 =
   "iVBORw0KGgoAAAANSUhEUgAAAB0AAAAdCAIAAADZ8fBYAAAAJklEQVR42mNID3tDC8Qwau6ouaPmjpo7au6ouaPmjpo7au6gMhcAEQh0fRDvPWgAAAAASUVORK5CYII=";
 const ICON_2X_B64 =
@@ -106,17 +149,12 @@ type PassImages = {
 async function resolvePassImages(
   businessLogoUrl?: string | null,
   heroUrl?: string | null,
-  viewModel?: WalletCardViewModel | null,
+  _viewModel?: WalletCardViewModel | null,
 ): Promise<PassImages> {
   const fallbackIcon1x = base64ToBytes(ICON_1X_B64);
   const fallbackIcon2x = base64ToBytes(ICON_2X_B64);
 
-  const logoBytes = businessLogoUrl?.trim()
-    ? await fetchImageBytes(businessLogoUrl)
-    : null;
-  const fallbackLogoBytes = await fetchImageBytes(resolveFallbackLogoUrl());
-  const logo1x = logoBytes || fallbackLogoBytes || fallbackIcon2x;
-  const logo2x = logoBytes || fallbackLogoBytes || fallbackIcon2x;
+  const { logo1x, logo2x, hasBusinessLogo } = await resolveApplePassLogoBytes(businessLogoUrl);
 
   let strip1x: Uint8Array | undefined;
   let strip2x: Uint8Array | undefined;
@@ -139,7 +177,7 @@ async function resolvePassImages(
     logo2x,
     strip1x,
     strip2x,
-    hasBusinessLogo: Boolean(logoBytes),
+    hasBusinessLogo,
   };
 }
 

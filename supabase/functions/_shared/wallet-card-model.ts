@@ -570,18 +570,7 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
     }];
 
   const primaryFields: ApplePassField[] = isStamps
-    ? [
-      {
-        key: "customer",
-        label: "Client",
-        value: vm.customerDisplayName,
-      },
-      {
-        key: "reward",
-        label: "Récompense",
-        value: vm.rewardLabel,
-      },
-    ]
+    ? []
     : [{
       key: "balance",
       label: vm.balanceLabel,
@@ -590,18 +579,31 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
     }];
 
   const secondaryFields: ApplePassField[] = isStamps
-    ? [{
-      key: "promo_face",
-      label: "Offre",
-      value: vm.promoMessage || vm.faceTagline,
-    }]
+    ? [
+      {
+        key: "customer",
+        label: "Client",
+        value: vm.customerDisplayName,
+      },
+      {
+        key: "promo_face",
+        label: "Offre",
+        value: vm.promoMessage || vm.faceTagline,
+      },
+    ]
     : [{
       key: "customer",
       label: "Client",
       value: vm.customerDisplayName,
     }];
 
-  const auxiliaryFields: ApplePassField[] = [];
+  const auxiliaryFields: ApplePassField[] = isStamps
+    ? [{
+      key: "reward",
+      label: "Récompense",
+      value: vm.rewardLabel,
+    }]
+    : [];
 
   if (vm.hasRewardUnlocked) {
     auxiliaryFields.push({

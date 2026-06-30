@@ -53,7 +53,7 @@ function StampProgressRight({ model, size = 'md' }) {
 
 function StampCardBody({ model, variant = 'google' }) {
   return (
-    <div className={cn(variant === 'google' ? 'space-y-1' : 'space-y-4')}>
+    <div className="space-y-1">
       {model.hasRewardUnlocked ? (
         <RewardUnlockedBanner text={model.rewardUnlockedBannerText} />
       ) : null}
@@ -101,44 +101,35 @@ function AppleCardFace({ model }) {
       className="overflow-hidden rounded-2xl shadow-lg ring-1 ring-black/10"
       style={{ backgroundColor: model.primaryColor }}
     >
-      {model.heroUrl ? (
-        <div className="h-20 w-full overflow-hidden bg-black/20">
-          <img src={model.heroUrl} alt="" className="h-full w-full object-cover" />
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        {model.logoUrl ? (
+          <img src={model.logoUrl} alt="" className="h-7 w-7 rounded-full object-cover ring-1 ring-white/20" />
+        ) : (
+          <span className="text-xs font-semibold text-white/90">RegalClic</span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] uppercase tracking-wide text-white/60">RegalClic</p>
+          <p className="truncate text-sm font-semibold text-white">{model.businessName}</p>
         </div>
-      ) : null}
+        {isStamps ? <StampProgressRight model={model} /> : null}
+      </div>
 
-      <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
-        <div className="flex items-start gap-3">
-          {model.logoUrl ? (
-            <img
-              src={model.logoUrl}
-              alt=""
-              className="h-10 max-w-[120px] object-contain object-left"
-            />
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-tight text-white">RegalClic</p>
-            <p className="truncate text-xs font-medium text-white/85">{model.businessName}</p>
-          </div>
-          {isStamps ? (
-            <StampProgressRight model={model} />
-          ) : (
-            <div className="min-w-0 flex-1 text-right">
-              <p className="text-[10px] uppercase tracking-wide text-white/70" style={{ color: model.labelColor }}>
-                Carte de fidélité
-              </p>
-            </div>
-          )}
-        </div>
-
+      <div className="space-y-1 p-3 sm:p-4">
         {isStamps ? (
           <StampCardBody model={model} variant="apple" />
         ) : (
-          <PointsCardBody
-            model={model}
-            statusLabel={model.secondaryMetricLabel}
-            statusValue={String(model.secondaryMetricValue)}
-          />
+          <>
+            {model.heroUrl ? (
+              <div className="mb-3 h-20 w-full overflow-hidden rounded-lg bg-black/20">
+                <img src={model.heroUrl} alt="" className="h-full w-full object-cover" />
+              </div>
+            ) : null}
+            <PointsCardBody
+              model={model}
+              statusLabel={model.secondaryMetricLabel}
+              statusValue={String(model.secondaryMetricValue)}
+            />
+          </>
         )}
 
         {model.promoMessage && !isStamps ? (
