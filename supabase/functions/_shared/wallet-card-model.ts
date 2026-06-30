@@ -238,6 +238,11 @@ export function formatStampProgressText(filled: number, total: number): string {
   return `${Math.max(0, Math.floor(filled))} / ${Math.max(1, Math.floor(total))}`;
 }
 
+/** Affichage face carte — compact type « 2/10 ». */
+export function formatStampFaceText(filled: number, total: number): string {
+  return `${Math.max(0, Math.floor(filled))}/${Math.max(1, Math.floor(total))}`;
+}
+
 export function buildStampSlots(filled: number, total: number): StampSlot[] {
   const safeTotal = Math.max(Math.floor(total) || 1, 1);
   const safeFilled = Math.min(Math.max(0, Math.floor(filled)), safeTotal);
@@ -555,7 +560,7 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
     ? [{
       key: "stamp_count",
       label: vm.balanceLabel,
-      value: formatStampProgressText(vm.balance, vm.stampsRequired ?? 0),
+      value: formatStampFaceText(vm.balance, vm.stampsRequired ?? 0),
       changeMessage: vm.balanceChangeMessage,
     }]
     : [{
@@ -773,13 +778,6 @@ export function buildGoogleSecondaryLoyaltyPoints(vm: WalletCardViewModel): {
   label: string;
   balance: { int: number };
 } {
-  if (vm.programType === "stamps" && vm.stampsRequired) {
-    return {
-      label: "Objectif",
-      balance: { int: vm.stampsRequired },
-    };
-  }
-
   if (vm.rewardsAvailable > 0) {
     return {
       label: vm.rewardsAvailable > 1 ? "Récompenses" : "Récompense",
@@ -861,28 +859,17 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
   };
 }
 
-/** Layout tampons — Tampons + Objectif sur la première ligne. */
+/** Layout tampons — compteur « Tampons 2/10 » via module texte (fiable sur Google). */
 export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
-  const { client, reward, promo, rewardUnlocked } = GOOGLE_FACE_MODULE_IDS;
+  const { client, reward, promo, rewardUnlocked, stamps } = GOOGLE_FACE_MODULE_IDS;
   return {
     cardTemplateOverride: {
       cardRowTemplateInfos: [
         {
-          twoItems: {
-            startItem: {
+          oneItem: {
+            item: {
               firstValue: {
-                fields: [
-                  { fieldPath: "object.loyaltyPoints.label" },
-                  { fieldPath: "object.loyaltyPoints.balance" },
-                ],
-              },
-            },
-            endItem: {
-              firstValue: {
-                fields: [
-                  { fieldPath: "object.secondaryLoyaltyPoints.label" },
-                  { fieldPath: "object.secondaryLoyaltyPoints.balance" },
-                ],
+                fields: [{ fieldPath: `object.textModulesData['${stamps}']` }],
               },
             },
           },
@@ -949,6 +936,11 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
   const imageModules: GoogleImageModule[] = [];
 
   if (isStamps) {
+    textModules.push({
+      id: GOOGLE_FACE_MODULE_IDS.stamps,
+      header: vm.balanceLabel,
+      body: formatStampFaceText(vm.balance, vm.stampsRequired ?? 0),
+    });
     textModules.push({
       id: GOOGLE_FACE_MODULE_IDS.rewardUnlocked,
       header: vm.hasRewardUnlocked ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort : " ",

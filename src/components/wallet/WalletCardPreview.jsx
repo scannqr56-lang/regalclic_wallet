@@ -31,20 +31,18 @@ function PointsBalanceHero({ model }) {
 }
 
 function StampBalanceHero({ model }) {
+  const stampFace = `${model.balance}/${model.stampsRequired}`;
   return (
-    <div className="grid grid-cols-2 gap-3 text-center">
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
-          {model.balanceLabel}
-        </p>
-        <p className="text-3xl font-bold tabular-nums text-white sm:text-4xl">{model.balance}</p>
-      </div>
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
-          Objectif
-        </p>
-        <p className="text-3xl font-bold tabular-nums text-white sm:text-4xl">{model.stampsRequired}</p>
-      </div>
+    <div className="rounded-xl border border-white/20 bg-black/20 px-4 py-3 text-center">
+      <p
+        className="text-[10px] font-semibold uppercase tracking-[0.18em]"
+        style={{ color: model.labelColor }}
+      >
+        {model.balanceLabel}
+      </p>
+      <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight text-white sm:text-5xl">
+        {stampFace}
+      </p>
     </div>
   );
 }
@@ -119,9 +117,8 @@ function AppleCardFace({ model }) {
               <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
                 {model.balanceLabel}
               </p>
-              <p className="text-lg font-bold tabular-nums text-white">
-                {model.balance}
-                <span className="text-sm font-semibold text-white/70"> / {model.stampsRequired}</span>
+              <p className="text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
+                {model.balance}/{model.stampsRequired}
               </p>
             </div>
           ) : (
