@@ -25,6 +25,9 @@ import AiAssistantCalendarPage from '@/pages/dashboard/AiAssistantCalendarPage';
 import GuidedIdeasPage from '@/pages/dashboard/GuidedIdeasPage';
 import RestaurantPage from '@/pages/dashboard/RestaurantPage';
 import AdminMerchantsPage from '@/pages/admin/AdminMerchantsPage';
+import AdminProspectsPage from '@/pages/admin/AdminProspectsPage';
+import AdminProspectDetailPage from '@/pages/admin/AdminProspectDetailPage';
+import ProspectFormPage from '@/pages/prospect/ProspectFormPage';
 import JoinPage from '@/pages/join/JoinPage';
 import JoinSuccessPage from '@/pages/join/JoinSuccessPage';
 
@@ -44,6 +47,9 @@ export default function App() {
             {/* Public — inscription client */}
             <Route path="/join/:businessSlug" element={<JoinPage />} />
             <Route path="/join/:businessSlug/success" element={<JoinSuccessPage />} />
+
+            {/* Public — formulaire commercial prospects */}
+            <Route path="/prospect-form" element={<ProspectFormPage />} />
 
             <Route path="/auth" element={<AuthPage />} />
             <Route
@@ -215,6 +221,22 @@ export default function App() {
               element={
                 <AdminProtectedRoute>
                   <AdminMerchantsPage />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/prospects"
+              element={
+                <AdminProtectedRoute>
+                  <AdminProspectsPage />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/prospects/:id"
+              element={
+                <AdminProtectedRoute>
+                  <AdminProspectDetailPage />
                 </AdminProtectedRoute>
               }
             />

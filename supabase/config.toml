@@ -2,6 +2,9 @@
 [functions.public-join]
 verify_jwt = false
 
+[functions.public-prospect]
+verify_jwt = false
+
 [functions.wallet-apple-pass]
 verify_jwt = false
 

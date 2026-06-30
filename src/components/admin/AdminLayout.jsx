@@ -1,12 +1,19 @@
 import { LogOut, Menu, Shield, X } from 'lucide-react';
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import SkipToContent from '@/components/ui/skip-to-content';
 import { cn } from '@/lib/utils';
 
+const ADMIN_NAV = [
+  { to: '/admin/merchants', label: 'Commerces' },
+  { to: '/admin/prospects', label: 'Prospects' },
+];
+
 export default function AdminLayout({ children, title, description }) {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
@@ -38,14 +45,28 @@ export default function AdminLayout({ children, title, description }) {
             <span className="hidden sm:inline">Déconnexion</span>
           </Button>
         </div>
-        <div
-          className={cn(
-            'border-t bg-slate-50 px-4 py-3 sm:hidden',
-            mobileNavOpen ? 'block' : 'hidden',
-          )}
-        >
-          <p className="text-xs text-slate-500">Espace administration plateforme</p>
-        </div>
+        <nav className="border-t bg-slate-50 px-4 py-2">
+          <div className={cn('flex flex-wrap gap-2', !mobileNavOpen && 'hidden sm:flex')}>
+            {ADMIN_NAV.map((item) => {
+              const active = location.pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={cn(
+                    'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    active
+                      ? 'bg-rc-navy text-white'
+                      : 'text-slate-600 hover:bg-white hover:text-rc-navy',
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
       </header>
 
       <main id="main-content" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-4 sm:py-6">
