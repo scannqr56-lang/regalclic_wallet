@@ -165,10 +165,14 @@ function buildGoogleLinksModule(vm: WalletCardViewModel) {
 }
 
 function buildGoogleLoyaltyPointsFields(fields: ReturnType<typeof mapViewModelToGoogleFields>) {
+  const loyaltyBalance = fields.loyaltyPointsBalanceDisplay
+    ? { string: fields.loyaltyPointsBalanceDisplay }
+    : { int: fields.loyaltyPointsBalance };
+
   return {
     loyaltyPoints: {
       label: fields.loyaltyPointsLabel,
-      balance: { int: fields.loyaltyPointsBalance },
+      balance: loyaltyBalance,
     },
     secondaryLoyaltyPoints: {
       label: fields.secondaryLoyaltyPointsLabel,

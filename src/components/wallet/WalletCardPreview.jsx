@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildWalletPreviewModel } from '@/lib/wallet-card-preview';
-import StampTicketGrid, { RewardUnlockedBanner } from '@/components/wallet/StampTicketGrid';
+import { RewardUnlockedBanner } from '@/components/wallet/StampTicketGrid';
 
 function PreviewField({ label, value, labelColor, valueClassName, className }) {
   if (!value) return null;
@@ -30,32 +30,37 @@ function PointsBalanceHero({ model }) {
   );
 }
 
-function StampCardBody({ model }) {
+function StampBalanceHero({ model }) {
+  return (
+    <div className="text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
+        {model.balanceLabel}
+      </p>
+      <p className="text-3xl font-bold tabular-nums text-white sm:text-4xl">
+        {model.balance}
+        <span className="text-xl font-semibold text-white/70 sm:text-2xl"> / {model.stampsRequired}</span>
+      </p>
+    </div>
+  );
+}
+
+function StampCardBody({ model, variant = 'google' }) {
   return (
     <div className="space-y-4">
       {model.hasRewardUnlocked ? (
         <RewardUnlockedBanner text={model.rewardUnlockedBannerText} />
       ) : null}
-      <StampTicketGrid
-        slots={model.stampSlots}
-        balance={model.balance}
-        total={model.stampsRequired}
-        rewardLabel={model.rewardLabel}
-        labelColor={model.labelColor}
-        rewardReady={model.hasRewardUnlocked}
-      />
+      {variant === 'google' ? <StampBalanceHero model={model} /> : null}
       <div className="grid grid-cols-2 gap-3">
         <PreviewField label="Client" value={model.customerDisplayName} labelColor={model.labelColor} />
-        {model.rewardsAvailableSample > 0 ? (
-          <PreviewField
-            label="Récompense disponible"
-            value={`1 ${model.rewardLabel.toLowerCase()} à utiliser`}
-            labelColor={model.labelColor}
-          />
-        ) : (
-          <PreviewField label="Programme" value={model.earnRuleText} labelColor={model.labelColor} />
-        )}
+        <PreviewField label="Récompense" value={model.rewardLabel} labelColor={model.labelColor} />
       </div>
+      <PreviewField
+        label="Offre"
+        value={model.promoMessage || model.faceTagline}
+        labelColor={model.labelColor}
+        valueClassName="text-sm leading-snug text-white whitespace-normal"
+      />
     </div>
   );
 }
@@ -92,26 +97,39 @@ function AppleCardFace({ model }) {
       ) : null}
 
       <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           {model.logoUrl ? (
             <img
               src={model.logoUrl}
               alt=""
               className="h-10 max-w-[120px] object-contain object-left"
             />
-          ) : (
-            <span className="text-sm font-semibold text-white/90">RegalClic</span>
-          )}
-          <div className="min-w-0 flex-1 text-right">
-            <p className="text-[10px] uppercase tracking-wide text-white/70" style={{ color: model.labelColor }}>
-              {isStamps ? 'Carte à tampons' : 'Carte de fidélité'}
-            </p>
-            <p className="truncate text-sm font-semibold text-white">{model.businessName}</p>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold leading-tight text-white">RegalClic</p>
+            <p className="truncate text-xs font-medium text-white/85">{model.businessName}</p>
           </div>
+          {isStamps ? (
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: model.labelColor }}>
+                {model.balanceLabel}
+              </p>
+              <p className="text-lg font-bold tabular-nums text-white">
+                {model.balance}
+                <span className="text-sm font-semibold text-white/70"> / {model.stampsRequired}</span>
+              </p>
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1 text-right">
+              <p className="text-[10px] uppercase tracking-wide text-white/70" style={{ color: model.labelColor }}>
+                Carte de fidélité
+              </p>
+            </div>
+          )}
         </div>
 
         {isStamps ? (
-          <StampCardBody model={model} />
+          <StampCardBody model={model} variant="apple" />
         ) : (
           <PointsCardBody
             model={model}
@@ -120,7 +138,7 @@ function AppleCardFace({ model }) {
           />
         )}
 
-        {model.promoMessage ? (
+        {model.promoMessage && !isStamps ? (
           <p className="break-words rounded-lg bg-white/10 px-3 py-2 text-center text-xs leading-relaxed text-white/95">
             {model.promoMessage}
           </p>
@@ -170,7 +188,7 @@ function GoogleCardFace({ model }) {
           <PointsCardBody model={model} statusLabel={statusLabel} statusValue={statusValue} />
         )}
 
-        {model.promoMessage ? (
+        {model.promoMessage && !isStamps ? (
           <p className="break-words rounded-lg bg-white/10 px-3 py-2 text-center text-xs leading-relaxed text-white/95">
             {model.promoMessage}
           </p>
@@ -214,7 +232,7 @@ export default function WalletCardPreview({ form, loyaltyProgram, compact = fals
             <p className="text-sm font-semibold text-slate-900">Aperçu de la carte</p>
             <p className="text-xs text-muted-foreground">
               {isStamps
-                ? 'Programme tampons — ticket avec emplacements à valider.'
+                ? 'Programme tampons — compteur et offre sur la face de carte.'
                 : 'Structure alignée Apple Wallet et Google Wallet.'}
             </p>
           </div>

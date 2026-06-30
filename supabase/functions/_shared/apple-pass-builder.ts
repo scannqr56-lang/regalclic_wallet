@@ -15,7 +15,7 @@ import {
   type WalletCardDbInput,
   type WalletCardViewModel,
 } from "./wallet-card-model.ts";
-import { generateAppleStampStrips, resolveStampPassLabelRgb } from "./stamp-strip-generator.ts";
+import { resolveStampPassLabelRgb } from "./stamp-strip-generator.ts";
 import {
   applyAppleNotificationHints,
   type AppleNotificationHints,
@@ -60,6 +60,10 @@ async function sha1Hex(data: Uint8Array) {
 
 function readApplePemEnv(name: string): string {
   return (Deno.env.get(name) || "").replaceAll("\\n", "\n");
+}
+
+function resolveAppleLogoText(vm: WalletCardViewModel): string {
+  return `${REGALCLIC_WALLET_ISSUER_NAME}\n${vm.businessName}`;
 }
 
 const ICON_1X_B64 =
@@ -116,22 +120,6 @@ async function resolvePassImages(
 
   let strip1x: Uint8Array | undefined;
   let strip2x: Uint8Array | undefined;
-
-  if (viewModel?.programType === "stamps" && viewModel.stampsRequired) {
-    try {
-      const strips = await generateAppleStampStrips({
-        filled: viewModel.balance,
-        total: viewModel.stampsRequired,
-        backgroundHex: viewModel.primaryColorHex,
-        foregroundHex: viewModel.labelColorHex,
-        rewardReady: viewModel.hasRewardUnlocked,
-      });
-      strip1x = strips.strip1x;
-      strip2x = strips.strip2x;
-    } catch (error) {
-      console.error("[apple-pass] stamp strip generation failed", error);
-    }
-  }
 
   if (!strip1x || !strip2x) {
     const heroCandidate = heroUrl?.trim() || (Deno.env.get("REGALCLIC_WALLET_STRIP_URL") || "").trim();
@@ -258,11 +246,9 @@ export async function buildApplePkpass(input: ApplePassBuildInput): Promise<Uint
   const vm = input.viewModel;
   const fields = mapViewModelToAppleFields(vm);
 
-  const stampStripFace = vm.programType === "stamps"
-    && Boolean(vm.stampsRequired)
-    && Boolean(vm.stampStripImageUrl);
+  const isStampProgram = vm.programType === "stamps" && Boolean(vm.stampsRequired);
 
-  if ((vm.promoMessage || input.notificationHints?.promoNotifyValue) && !stampStripFace) {
+  if ((vm.promoMessage || input.notificationHints?.promoNotifyValue) && !isStampProgram) {
     fields.auxiliaryFields.unshift({
       key: "tagline",
       label: " ",
@@ -296,7 +282,7 @@ export async function buildApplePkpass(input: ApplePassBuildInput): Promise<Uint
 
   const images = await resolvePassImages(vm.logoUrl, vm.heroUrl, vm);
   const backgroundColor = resolvePrimaryRgb(vm.primaryColorHex);
-  const labelColor = stampStripFace && images.strip1x
+  const labelColor = isStampProgram
     ? resolveStampPassLabelRgb(vm.primaryColorHex, vm.labelColorHex)
     : resolveLabelRgb(vm.labelColorHex);
 
@@ -307,7 +293,7 @@ export async function buildApplePkpass(input: ApplePassBuildInput): Promise<Uint
     teamIdentifier: input.teamIdentifier,
     organizationName: vm.organizationName,
     description: vm.passDescription,
-    logoText: images.hasBusinessLogo ? "" : REGALCLIC_WALLET_ISSUER_NAME,
+    logoText: resolveAppleLogoText(vm),
     foregroundColor: "rgb(255,255,255)",
     backgroundColor,
     labelColor,

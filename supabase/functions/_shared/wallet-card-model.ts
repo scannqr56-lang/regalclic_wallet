@@ -10,7 +10,6 @@ import {
   resolveLabelHex,
   resolvePrimaryHex,
 } from "./wallet-branding.ts";
-import { buildStampStripImageUrl } from "./stamp-strip-generator.ts";
 
 // ---------------------------------------------------------------------------
 // Décisions produit Phase 1
@@ -466,17 +465,7 @@ export function buildWalletCardViewModel(input: WalletCardDbInput): WalletCardVi
   const stampGridText = stampsRequired
     ? formatStampGridText(balance, stampsRequired)
     : null;
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-  const stampStripImageUrl = stampsRequired
-    ? buildStampStripImageUrl(
-      supabaseUrl,
-      balance,
-      stampsRequired,
-      resolvePrimaryHex(input.business.primary_color),
-      resolveLabelHex(input.business.wallet_label_color),
-      { rewardReady: hasRewardUnlocked },
-    )
-    : null;
+  const stampStripImageUrl = null;
 
   return {
     membershipId: input.membership.id,
@@ -561,45 +550,21 @@ export type ApplePassFieldSet = {
 
 export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFieldSet {
   const isStamps = vm.programType === "stamps" && vm.stampsRequired;
-  const stampStripFace = isStamps && Boolean(vm.stampStripImageUrl);
 
-  const headerFields: ApplePassField[] = stampStripFace
-    ? [
-      {
-        key: "business",
-        label: WALLET_DEFAULT_TEXTS.loyaltyLabel,
-        value: vm.businessName,
-      },
-      {
-        key: "stamp_count",
-        label: "Tampons",
-        value: formatStampProgressText(vm.balance, vm.stampsRequired ?? 0),
-        changeMessage: vm.balanceChangeMessage,
-      },
-    ]
+  const headerFields: ApplePassField[] = isStamps
+    ? [{
+      key: "stamp_count",
+      label: vm.balanceLabel,
+      value: formatStampProgressText(vm.balance, vm.stampsRequired ?? 0),
+      changeMessage: vm.balanceChangeMessage,
+    }]
     : [{
       key: "business",
       label: WALLET_DEFAULT_TEXTS.loyaltyLabel,
       value: vm.businessName,
     }];
 
-  const primaryFields: ApplePassField[] = stampStripFace
-    ? []
-    : isStamps
-      ? [{
-        key: "stamps",
-        label: "Tampons",
-        value: formatStampProgressText(vm.balance, vm.stampsRequired ?? 0),
-        changeMessage: vm.balanceChangeMessage,
-      }]
-      : [{
-        key: "balance",
-        label: vm.balanceLabel,
-        value: String(vm.balance),
-        changeMessage: vm.balanceChangeMessage,
-      }];
-
-  const secondaryFields: ApplePassField[] = isStamps
+  const primaryFields: ApplePassField[] = isStamps
     ? [
       {
         key: "customer",
@@ -612,6 +577,19 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
         value: vm.rewardLabel,
       },
     ]
+    : [{
+      key: "balance",
+      label: vm.balanceLabel,
+      value: String(vm.balance),
+      changeMessage: vm.balanceChangeMessage,
+    }];
+
+  const secondaryFields: ApplePassField[] = isStamps
+    ? [{
+      key: "promo_face",
+      label: "Offre",
+      value: vm.promoMessage || vm.faceTagline,
+    }]
     : [{
       key: "customer",
       label: "Client",
@@ -629,22 +607,7 @@ export function mapViewModelToAppleFields(vm: WalletCardViewModel): ApplePassFie
     });
   }
 
-  if (isStamps) {
-    if (vm.promoMessage) {
-      auxiliaryFields.push({
-        key: "promo_face",
-        label: "Offre",
-        value: vm.promoMessage,
-      });
-    }
-    if (!stampStripFace) {
-      auxiliaryFields.push({
-        key: "progress",
-        label: "Progression",
-        value: `${vm.balance}/${vm.stampsRequired ?? "?"}`,
-      });
-    }
-  } else {
+  if (!isStamps) {
     auxiliaryFields.push(
       {
         key: "next_reward",
@@ -785,6 +748,8 @@ export type GoogleWalletFieldSet = {
   accountName: string;
   loyaltyPointsLabel: string;
   loyaltyPointsBalance: number;
+  /** Affichage « 1 / 10 » pour les programmes tampons (balance Google en string). */
+  loyaltyPointsBalanceDisplay: string | null;
   secondaryLoyaltyPointsLabel: string;
   secondaryLoyaltyPointsBalance: number;
   textModulesData: GoogleTextModule[];
@@ -891,9 +856,9 @@ export function buildGoogleClassTemplateInfo(): Record<string, unknown> {
   };
 }
 
-/** Layout ticket tampons — bandeau image + bannière récompense si débloquée. */
+/** Layout tampons — compteur seul (loyaltyPoints) + client / récompense / offre. */
 export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
-  const { client, reward, promo, stampsImage, rewardUnlocked } = GOOGLE_FACE_MODULE_IDS;
+  const { client, reward, promo, rewardUnlocked } = GOOGLE_FACE_MODULE_IDS;
   return {
     cardTemplateOverride: {
       cardRowTemplateInfos: [
@@ -901,7 +866,10 @@ export function buildGoogleClassTemplateInfoStamps(): Record<string, unknown> {
           oneItem: {
             item: {
               firstValue: {
-                fields: [{ fieldPath: `object.imageModulesData['${stampsImage}']` }],
+                fields: [
+                  { fieldPath: "object.loyaltyPoints.label" },
+                  { fieldPath: "object.loyaltyPoints.balance" },
+                ],
               },
             },
           },
@@ -962,31 +930,10 @@ function buildGoogleFaceStatusModule(vm: WalletCardViewModel): GoogleTextModule 
 
 export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalletFieldSet {
   const secondary = buildGoogleSecondaryLoyaltyPoints(vm);
-  const isStamps = vm.programType === "stamps" && vm.stampGridText;
+  const isStamps = vm.programType === "stamps" && Boolean(vm.stampsRequired);
 
   const textModules: GoogleTextModule[] = [];
   const imageModules: GoogleImageModule[] = [];
-
-  if (isStamps && vm.stampStripImageUrl) {
-    imageModules.push({
-      id: GOOGLE_FACE_MODULE_IDS.stampsImage,
-      mainImage: {
-        sourceUri: { uri: vm.stampStripImageUrl },
-        contentDescription: {
-          defaultValue: {
-            language: "fr-FR",
-            value: `Tampons ${formatStampProgressText(vm.balance, vm.stampsRequired ?? 0)}`,
-          },
-        },
-      },
-    });
-  } else if (isStamps) {
-    textModules.push({
-      id: GOOGLE_FACE_MODULE_IDS.stamps,
-      header: `Tampons · ${formatStampProgressText(vm.balance, vm.stampsRequired ?? "?")}`,
-      body: vm.stampGridText!,
-    });
-  }
 
   if (isStamps) {
     textModules.push({
@@ -1017,16 +964,20 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
     ...(isStamps ? [] : [buildGoogleFaceStatusModule(vm)]),
     {
       id: GOOGLE_FACE_MODULE_IDS.promo,
-      header: vm.promoMessage
-        ? vm.promoLabel
-        : ((!isStamps && vm.hasRewardUnlocked)
-          ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort
-          : " "),
-      body: vm.promoMessage
-        ? vm.promoMessage
-        : ((!isStamps && vm.hasRewardUnlocked)
-          ? (vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel)
-          : vm.faceTagline),
+      header: isStamps
+        ? "Offre"
+        : (vm.promoMessage
+          ? vm.promoLabel
+          : (vm.hasRewardUnlocked
+            ? WALLET_DEFAULT_TEXTS.rewardUnlockedShort
+            : " ")),
+      body: isStamps
+        ? (vm.promoMessage || vm.faceTagline)
+        : (vm.promoMessage
+          ? vm.promoMessage
+          : (vm.hasRewardUnlocked
+            ? (vm.rewardsAvailableText || vm.rewardUnlockedBannerText || vm.rewardLabel)
+            : vm.faceTagline)),
     },
     {
       id: "program",
@@ -1090,6 +1041,9 @@ export function mapViewModelToGoogleFields(vm: WalletCardViewModel): GoogleWalle
     accountName: vm.customerDisplayName,
     loyaltyPointsLabel: vm.balanceLabel,
     loyaltyPointsBalance: vm.balance,
+    loyaltyPointsBalanceDisplay: isStamps
+      ? formatStampProgressText(vm.balance, vm.stampsRequired ?? 0)
+      : null,
     secondaryLoyaltyPointsLabel: secondary.label,
     secondaryLoyaltyPointsBalance: secondary.balance.int,
     textModulesData: textModules,
